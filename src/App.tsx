@@ -9,6 +9,7 @@ import { DashboardLayout } from "@/components/Layout/DashboardLayout";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import Patients from "./pages/Patients";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,16 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Dashboard />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/patients"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Patients />
                   </DashboardLayout>
                 </ProtectedRoute>
               }
