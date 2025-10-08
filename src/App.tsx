@@ -10,6 +10,9 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Patients from "./pages/Patients";
+import Owners from "./pages/Owners";
+import Appointments from "./pages/Appointments";
+import MedicalRecords from "./pages/MedicalRecords";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +43,36 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Patients />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/owners"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Owners />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/appointments"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Appointments />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/medical-records"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <MedicalRecords />
                   </DashboardLayout>
                 </ProtectedRoute>
               }
