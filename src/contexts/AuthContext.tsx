@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { authService } from '../services/authService';
+import { useToast } from '../hooks/use-toast';
 
 export type UserRole = 'admin' | 'veterinarian' | 'receptionist';
 
@@ -8,6 +10,8 @@ export interface User {
   email: string;
   fullName: string;
   role: UserRole;
+  roles?: string[];
+  permissions?: string[];
 }
 
 interface AuthContextType {
@@ -19,68 +23,94 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo
-const mockUsers: (User & { password: string })[] = [
-  {
-    id: '1',
-    username: 'admin',
-    password: 'admin123',
-    email: 'admin@vetclinic.com',
-    fullName: 'Dr. María García',
-    role: 'admin',
-  },
-  {
-    id: '2',
-    username: 'vet1',
-    password: 'vet123',
-    email: 'vet@vetclinic.com',
-    fullName: 'Dr. Carlos López',
-    role: 'veterinarian',
-  },
-  {
-    id: '3',
-    username: 'recep1',
-    password: 'recep123',
-    email: 'recep@vetclinic.com',
-    fullName: 'Ana Martínez',
-    role: 'receptionist',
-  },
-];
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is stored in localStorage
-    const storedUser = localStorage.getItem('vetclinic_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    // Check if user is stored in localStorage and validate token
+    const initAuth = async () => {
+      const storedUser = localStorage.getItem('vetclinic_user');
+      const token = authService.getToken();
+      
+      if (storedUser && token) {
+        try {
+          // Validate token by fetching current user
+          const currentUser = await authService.getCurrentUser();
+          setUser(currentUser);
+        } catch (error) {
+          // Token invalid or expired
+          console.error('Token validation failed:', error);
+          localStorage.removeItem('vetclinic_user');
+          localStorage.removeItem('vetclinic_token');
+          localStorage.removeItem('vetclinic_refresh_token');
+        }
+      }
+      setIsLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const foundUser = mockUsers.find(
-      u => u.username === username && u.password === password
-    );
-
-    if (foundUser) {
-      const { password: _, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('vetclinic_user', JSON.stringify(userWithoutPassword));
-      return true;
+    try {
+      const response = await authService.login({ username, password });
+      
+      if (response.success && response.data) {
+        // Store tokens
+        authService.setTokens(response.data.token, response.data.refreshToken);
+        
+        // Map role from backend (ROLE_ADMIN -> admin)
+        const primaryRole = response.data.roles[0]?.replace('ROLE_', '').toLowerCase() as UserRole;
+        
+        // Create user object
+        const userData: User = {
+          id: response.data.username, // Backend doesn't return ID in login, using username
+          username: response.data.username,
+          email: response.data.email,
+          fullName: response.data.fullName,
+          role: primaryRole,
+          roles: response.data.roles,
+          permissions: response.data.permissions,
+        };
+        
+        setUser(userData);
+        localStorage.setItem('vetclinic_user', JSON.stringify(userData));
+        
+        toast({
+          title: 'Login successful',
+          description: `Welcome back, ${response.data.fullName}!`,
+        });
+        
+        return true;
+      }
+      
+      toast({
+        title: 'Login failed',
+        description: response.message || 'Invalid credentials',
+        variant: 'destructive',
+      });
+      return false;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast({
+        title: 'Login error',
+        description: error.response?.data?.message || 'Unable to connect to server',
+        variant: 'destructive',
+      });
+      return false;
     }
-    
-    return false;
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('vetclinic_user');
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+    }
   };
 
   return (

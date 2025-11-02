@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search, UserCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,80 +9,164 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { UserFormDialog } from '@/components/users/UserFormDialog';
 import { UserDetailsDialog } from '@/components/users/UserDetailsDialog';
 import { User, UserRole } from '@/contexts/AuthContext';
-
-const mockUsers: User[] = [
-  {
-    id: '1',
-    username: 'admin',
-    email: 'admin@vetclinic.com',
-    fullName: 'Dr. María García',
-    role: 'admin',
-  },
-  {
-    id: '2',
-    username: 'vet1',
-    email: 'vet@vetclinic.com',
-    fullName: 'Dr. Carlos López',
-    role: 'veterinarian',
-  },
-  {
-    id: '3',
-    username: 'recep1',
-    email: 'recep@vetclinic.com',
-    fullName: 'Ana Martínez',
-    role: 'receptionist',
-  },
-];
+import { userService } from '@/services';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Users() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const { toast } = useToast();
+
+  // Load users from backend
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const page = await userService.getAll(0, 100, searchTerm);
+      setUsers(page.content);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudieron cargar los usuarios',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (user.fullName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (user.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (user.username?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
 
-  const handleAddUser = (data: Omit<User, 'id'>) => {
-    const newUser: User = {
-      ...data,
-      id: String(users.length + 1),
-    };
-    setUsers([...users, newUser]);
-    setIsFormOpen(false);
+  const handleAddUser = async (data: Omit<User, 'id'>) => {
+    try {
+      // Split fullName into firstName and lastName
+      const nameParts = data.fullName.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Map frontend role to backend role
+      const roleMap: { [key: string]: string } = {
+        'admin': 'ADMIN',
+        'veterinarian': 'VETERINARIAN',
+        'receptionist': 'RECEPTIONIST'
+      };
+      
+      const backendRole = roleMap[data.role?.toLowerCase() || 'receptionist'] || 'RECEPTIONIST';
+      
+      await userService.create({
+        username: data.username,
+        email: data.email,
+        password: 'changeme123', // Default password
+        firstName,
+        lastName,
+        roles: [backendRole],
+        isActive: true
+      });
+      toast({
+        title: 'Usuario creado',
+        description: 'El usuario se ha creado correctamente',
+      });
+      setIsFormOpen(false);
+      loadUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo crear el usuario',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleEditUser = (data: Omit<User, 'id'>) => {
+  const handleEditUser = async (data: Omit<User, 'id'>) => {
     if (!selectedUser) return;
-    const updatedUser: User = {
-      ...data,
-      id: selectedUser.id,
-    };
-    setUsers(users.map(user => user.id === selectedUser.id ? updatedUser : user));
-    setIsFormOpen(false);
-    setSelectedUser(null);
+    try {
+      // Split fullName into firstName and lastName
+      const nameParts = data.fullName.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Map frontend role to backend role
+      const roleMap: { [key: string]: string } = {
+        'admin': 'ADMIN',
+        'veterinarian': 'VETERINARIAN',
+        'receptionist': 'RECEPTIONIST'
+      };
+      
+      const backendRole = roleMap[data.role?.toLowerCase() || 'receptionist'] || 'RECEPTIONIST';
+      
+      await userService.update(selectedUser.id, {
+        email: data.email,
+        firstName,
+        lastName,
+        roles: [backendRole],
+      });
+      toast({
+        title: 'Usuario actualizado',
+        description: 'El usuario se ha actualizado correctamente',
+      });
+      setIsFormOpen(false);
+      setSelectedUser(null);
+      loadUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo actualizar el usuario',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleDeleteUser = (id: string) => {
-    setUsers(users.filter(user => user.id !== id));
-    setIsDetailsOpen(false);
-    setSelectedUser(null);
+  const handleDeleteUser = async (id: string) => {
+    try {
+      await userService.delete(id);
+      toast({
+        title: 'Usuario eliminado',
+        description: 'El usuario se ha eliminado correctamente',
+      });
+      setIsDetailsOpen(false);
+      setSelectedUser(null);
+      loadUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo eliminar el usuario',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const getRoleBadge = (role: UserRole) => {
-    const config = {
-      admin: { label: 'Administrador', variant: 'default' as const },
-      veterinarian: { label: 'Veterinario', variant: 'secondary' as const },
-      receptionist: { label: 'Recepcionista', variant: 'outline' as const },
+  const getRoleBadge = (role?: UserRole | string) => {
+    if (!role) return <Badge variant="outline">Sin rol</Badge>;
+    
+    // Normalize role (handle both "admin" and "ROLE_ADMIN" formats)
+    const normalizedRole = role.toString().toLowerCase().replace('role_', '');
+    
+    const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
+      admin: { label: 'Administrador', variant: 'default' },
+      veterinarian: { label: 'Veterinario', variant: 'secondary' },
+      receptionist: { label: 'Recepcionista', variant: 'outline' },
     };
-    const { label, variant } = config[role];
-    return <Badge variant={variant}>{label}</Badge>;
+    
+    const roleConfig = config[normalizedRole];
+    if (!roleConfig) {
+      return <Badge variant="outline">{role}</Badge>;
+    }
+    
+    return <Badge variant={roleConfig.variant}>{roleConfig.label}</Badge>;
   };
 
   return (

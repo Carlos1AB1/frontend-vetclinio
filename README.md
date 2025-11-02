@@ -1,73 +1,192 @@
-# Welcome to your Lovable project
+# 🏥 VetClinic Pro
 
-## Project info
+Sistema integral de gestión para clínicas veterinarias desarrollado con tecnologías modernas.
 
-**URL**: https://lovable.dev/projects/fe158090-1c52-4734-b75f-1a8ac5db7219
+## 🚀 Características
 
-## How can I edit this code?
+- 👥 **Gestión de Usuarios**: Sistema completo de roles y permisos (Admin, Veterinario, Recepcionista)
+- 🔐 **Autenticación Segura**: JWT con tokens de acceso y refresh
+- 📊 **Dashboard Interactivo**: Estadísticas y métricas en tiempo real
+- 📦 **Control de Inventario**: Gestión de productos y medicamentos
+- 🐾 **Gestión de Pacientes**: (Próximamente en DEV 2)
+- 📅 **Gestión de Citas**: (Próximamente en DEV 2)
+- 📋 **Historiales Médicos**: (Próximamente en DEV 3)
 
-There are several ways of editing your application.
+## 🛠️ Tecnologías
 
-**Use Lovable**
+### Frontend
+- **React 18** con TypeScript
+- **Vite** - Build tool ultrarrápido
+- **Tailwind CSS** - Estilos utilitarios
+- **Shadcn/ui** - Componentes de UI
+- **React Router** - Navegación
+- **Axios** - Cliente HTTP
+- **React Hook Form** - Manejo de formularios
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/fe158090-1c52-4734-b75f-1a8ac5db7219) and start prompting.
+### Backend
+- **Java 17**
+- **Spring Boot 3.2.0**
+- **Spring Security** con JWT
+- **PostgreSQL** - Base de datos
+- **Hibernate/JPA** - ORM
+- **Maven** - Gestión de dependencias
+- **Lombok** - Reducción de boilerplate
 
-Changes made via Lovable will be committed automatically to this repo.
+## 📋 Requisitos Previos
 
-**Use your preferred IDE**
+- Node.js 18+ y npm
+- Java 17+
+- Maven 3.8+
+- PostgreSQL 14+
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🔧 Instalación
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Backend
 
-Follow these steps:
+1. Configurar PostgreSQL:
+```sql
+CREATE DATABASE vetclinic_db;
+CREATE USER postgres WITH PASSWORD 'postgres';
+GRANT ALL PRIVILEGES ON DATABASE vetclinic_db TO postgres;
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+2. Configurar variables de entorno en `backend/src/main/resources/application.yml`
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+3. Compilar y ejecutar:
+```bash
+cd backend
+mvn clean package -DskipTests
+mvn spring-boot:run
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+El backend estará disponible en: `http://localhost:8081`
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### Frontend
+
+1. Instalar dependencias:
+```bash
+npm install
+```
+
+2. Iniciar en modo desarrollo:
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+El frontend estará disponible en: `http://localhost:8080`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 👤 Usuario por Defecto
 
-**Use GitHub Codespaces**
+- **Usuario**: admin
+- **Contraseña**: admin123
+- **Rol**: ADMIN
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 📁 Estructura del Proyecto
 
-## What technologies are used for this project?
+```
+vetclinic-pro/
+├── backend/                    # API REST Spring Boot
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/
+│   │   │   │   └── com/vetclinic/
+│   │   │   │       ├── config/          # Configuraciones
+│   │   │   │       ├── controller/      # Controladores REST
+│   │   │   │       ├── dto/             # Data Transfer Objects
+│   │   │   │       ├── entity/          # Entidades JPA
+│   │   │   │       ├── exception/       # Manejo de excepciones
+│   │   │   │       ├── patterns/        # Patrones de diseño
+│   │   │   │       ├── repository/      # Repositorios JPA
+│   │   │   │       ├── security/        # Seguridad y JWT
+│   │   │   │       └── service/         # Lógica de negocio
+│   │   │   └── resources/
+│   │   │       └── application.yml      # Configuración
+│   └── pom.xml                          # Dependencias Maven
+│
+├── src/                        # Frontend React
+│   ├── components/             # Componentes React
+│   │   ├── Layout/             # Layouts y rutas protegidas
+│   │   ├── ui/                 # Componentes de UI
+│   │   ├── users/              # Componentes de usuarios
+│   │   └── inventory/          # Componentes de inventario
+│   ├── contexts/               # Contextos React (Auth)
+│   ├── pages/                  # Páginas principales
+│   ├── services/               # Servicios de API
+│   └── types/                  # Tipos TypeScript
+│
+├── public/                     # Archivos estáticos
+├── index.html                  # HTML principal
+├── package.json               # Dependencias Node
+└── vite.config.ts             # Configuración Vite
+```
 
-This project is built with:
+## 🎨 Patrones de Diseño Implementados
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Backend
+- **Chain of Responsibility**: Validación de registro de usuarios
+- **Adapter**: Servicio de email adaptable
+- **Strategy**: Estrategias de notificación (Email, SMS)
+- **Builder**: Construcción de objetos complejos (Lombok)
+- **Singleton**: Proveedor de tokens JWT
+- **Repository**: Abstracción de la capa de datos
+- **Facade**: Servicios que simplifican operaciones complejas
+- **DTO**: Transferencia de datos entre capas
 
-## How can I deploy this project?
+### Frontend
+- **Custom Hooks**: Reutilización de lógica
+- **Context API**: Estado global de autenticación
+- **Service Layer**: Centralización de llamadas API
+- **Compound Components**: Componentes composables
 
-Simply open [Lovable](https://lovable.dev/projects/fe158090-1c52-4734-b75f-1a8ac5db7219) and click on Share -> Publish.
+## 🔒 Seguridad
 
-## Can I connect a custom domain to my Lovable project?
+- Autenticación JWT con tokens de acceso y refresh
+- Control de acceso basado en roles (RBAC)
+- Encriptación de contraseñas con BCrypt
+- CORS configurado para múltiples orígenes
+- Protección contra intentos de login fallidos
+- Validación de datos en frontend y backend
 
-Yes, you can!
+## 📝 API Endpoints
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Autenticación
+- `POST /api/auth/login` - Iniciar sesión
+- `POST /api/auth/register` - Registrar usuario
+- `POST /api/auth/refresh-token` - Refrescar token
+- `POST /api/auth/logout` - Cerrar sesión
+- `GET /api/auth/me` - Usuario actual
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### Usuarios (Admin)
+- `GET /api/users` - Listar usuarios (paginado)
+- `POST /api/users` - Crear usuario
+- `GET /api/users/:id` - Obtener usuario
+- `PUT /api/users/:id` - Actualizar usuario
+- `DELETE /api/users/:id` - Eliminar usuario (soft delete)
+
+### Dashboard
+- `GET /api/dashboard/stats` - Estadísticas del sistema
+
+### Inventario
+- `GET /api/inventory` - Listar productos
+- `POST /api/inventory` - Crear producto
+- `PUT /api/inventory/:id` - Actualizar producto
+- `DELETE /api/inventory/:id` - Eliminar producto
+
+## 🧪 Testing
+
+El proyecto incluye Postman Collection en:
+- `VetClinic Pro API- Version Carlos.postman_collection.json`
+
+## 📄 Licencia
+
+Proyecto desarrollado como parte del sistema VetClinic Pro.
+
+## 👥 Equipo de Desarrollo
+
+- **DEV 1**: Backend Lead - Seguridad & Core
+- **DEV 2**: Backend - Gestión de Pacientes & Citas
+- **DEV 3**: Backend - Historiales Médicos & Reportes
+
+---
+
+**VetClinic Pro** - Sistema de Gestión Veterinaria © 2025

@@ -16,17 +16,21 @@ interface UserDetailsDialogProps {
 export function UserDetailsDialog({ open, onOpenChange, user, onEdit, onDelete }: UserDetailsDialogProps) {
   if (!user) return null;
 
-  const getRoleBadge = (role: UserRole) => {
+  const getRoleBadge = (role: UserRole | undefined) => {
+    if (!role) return <Badge variant="outline">Sin rol</Badge>;
+    
     const config = {
       admin: { label: 'Administrador', variant: 'default' as const },
       veterinarian: { label: 'Veterinario', variant: 'secondary' as const },
       receptionist: { label: 'Recepcionista', variant: 'outline' as const },
     };
-    const { label, variant } = config[role];
+    const { label, variant } = config[role] || { label: 'Sin rol', variant: 'outline' as const };
     return <Badge variant={variant}>{label}</Badge>;
   };
 
-  const getRolePermissions = (role: UserRole) => {
+  const getRolePermissions = (role: UserRole | undefined) => {
+    if (!role) return ['Sin permisos asignados'];
+    
     const permissions = {
       admin: [
         'Acceso completo al sistema',
@@ -46,7 +50,7 @@ export function UserDetailsDialog({ open, onOpenChange, user, onEdit, onDelete }
         'Consulta de información de pacientes',
       ],
     };
-    return permissions[role];
+    return permissions[role] || ['Sin permisos asignados'];
   };
 
   return (
@@ -78,6 +82,33 @@ export function UserDetailsDialog({ open, onOpenChange, user, onEdit, onDelete }
                   <p className="text-sm font-semibold text-foreground">{user.email}</p>
                 </div>
               </div>
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                <UserCircle className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Usuario</p>
+                  <p className="text-sm font-semibold text-foreground">@{user.username}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Shield className="h-5 w-5 text-muted-foreground" />
+              <h3 className="text-sm font-medium text-muted-foreground">Roles del Sistema</h3>
+            </div>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {user.roles && user.roles.length > 0 ? (
+                user.roles.map((role, index) => (
+                  <Badge key={index} variant="secondary">
+                    {role.replace('ROLE_', '')}
+                  </Badge>
+                ))
+              ) : (
+                <Badge variant="outline">Sin roles asignados</Badge>
+              )}
             </div>
           </div>
 

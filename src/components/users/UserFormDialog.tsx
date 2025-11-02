@@ -1,4 +1,5 @@
 import { useForm } from 'react-hook-form';
+import { useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,8 +15,8 @@ interface UserFormDialogProps {
 }
 
 export function UserFormDialog({ open, onOpenChange, onSubmit, initialData }: UserFormDialogProps) {
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<Omit<User, 'id'>>({
-    defaultValues: initialData || {
+  const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<Omit<User, 'id'>>({
+    defaultValues: {
       username: '',
       email: '',
       fullName: '',
@@ -24,6 +25,27 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData }: Us
   });
 
   const role = watch('role');
+
+  // Reset form when dialog opens or initialData changes
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        reset({
+          username: initialData.username,
+          email: initialData.email,
+          fullName: initialData.fullName,
+          role: initialData.role,
+        });
+      } else {
+        reset({
+          username: '',
+          email: '',
+          fullName: '',
+          role: 'receptionist',
+        });
+      }
+    }
+  }, [open, initialData, reset]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

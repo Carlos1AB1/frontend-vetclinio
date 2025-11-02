@@ -5,28 +5,57 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { InventoryItem, InventoryFormData } from '@/types/inventory';
+import { type InventoryItem } from '@/services';
+
+interface InventoryFormData {
+  name: string;
+  category: string;
+  description?: string;
+  sku?: string;
+  quantity: number;
+  unit: string;
+  minStock?: number;
+  minQuantity?: number;
+  price?: number;
+  unitPrice?: number;
+  supplier?: string;
+  expirationDate?: string;
+  location?: string;
+}
 
 interface InventoryFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: InventoryFormData) => void;
-  initialData?: InventoryItem;
+  initialData?: Partial<InventoryItem & { status?: string }>;
 }
 
 export function InventoryFormDialog({ open, onOpenChange, onSubmit, initialData }: InventoryFormDialogProps) {
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<InventoryFormData>({
-    defaultValues: initialData || {
+    defaultValues: initialData ? {
+      name: initialData.name || '',
+      category: initialData.category || 'MEDICATION',
+      description: initialData.description || '',
+      sku: initialData.sku || '',
+      quantity: initialData.quantity || 0,
+      unit: initialData.unit || '',
+      minStock: initialData.minQuantity || 0,
+      minQuantity: initialData.minQuantity || 0,
+      price: initialData.unitPrice || 0,
+      unitPrice: initialData.unitPrice || 0,
+      supplier: initialData.supplier || '',
+      expirationDate: initialData.expirationDate || '',
+      location: initialData.location || '',
+    } : {
       name: '',
-      category: 'medicamento',
+      category: 'MEDICATION',
       description: '',
       quantity: 0,
       unit: '',
       minStock: 0,
       supplier: '',
-      cost: 0,
+      price: 0,
       expirationDate: '',
-      lastRestockDate: new Date().toISOString().split('T')[0],
     },
   });
 
@@ -61,11 +90,11 @@ export function InventoryFormDialog({ open, onOpenChange, onSubmit, initialData 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="medicamento">Medicamento</SelectItem>
-                  <SelectItem value="material">Material</SelectItem>
-                  <SelectItem value="alimento">Alimento</SelectItem>
-                  <SelectItem value="equipo">Equipo</SelectItem>
-                  <SelectItem value="otro">Otro</SelectItem>
+                  <SelectItem value="MEDICATION">Medicamento</SelectItem>
+                  <SelectItem value="SUPPLY">Material/Suministro</SelectItem>
+                  <SelectItem value="EQUIPMENT">Equipo</SelectItem>
+                  <SelectItem value="FOOD">Alimento</SelectItem>
+                  <SelectItem value="OTHER">Otro</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -123,15 +152,15 @@ export function InventoryFormDialog({ open, onOpenChange, onSubmit, initialData 
             </div>
 
             <div>
-              <Label htmlFor="cost">Costo Unitario ($) *</Label>
+              <Label htmlFor="price">Precio Unitario ($) *</Label>
               <Input
-                id="cost"
+                id="price"
                 type="number"
                 step="0.01"
-                {...register('cost', { required: 'El costo es requerido', valueAsNumber: true })}
+                {...register('price', { required: 'El precio es requerido', valueAsNumber: true })}
                 placeholder="0.00"
               />
-              {errors.cost && <p className="text-sm text-destructive mt-1">{errors.cost.message}</p>}
+              {errors.price && <p className="text-sm text-destructive mt-1">{errors.price.message}</p>}
             </div>
 
             <div>
@@ -144,13 +173,12 @@ export function InventoryFormDialog({ open, onOpenChange, onSubmit, initialData 
             </div>
 
             <div>
-              <Label htmlFor="lastRestockDate">Última Reposición *</Label>
+              <Label htmlFor="location">Ubicación</Label>
               <Input
-                id="lastRestockDate"
-                type="date"
-                {...register('lastRestockDate', { required: 'La fecha es requerida' })}
+                id="location"
+                {...register('location')}
+                placeholder="Ej: Estante A3"
               />
-              {errors.lastRestockDate && <p className="text-sm text-destructive mt-1">{errors.lastRestockDate.message}</p>}
             </div>
           </div>
 

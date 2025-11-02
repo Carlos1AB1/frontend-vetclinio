@@ -3,22 +3,26 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Edit, Trash2, Package, DollarSign, Calendar, AlertTriangle } from 'lucide-react';
-import { InventoryItem } from '@/types/inventory';
+import { type InventoryItem } from '@/services';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+type InventoryStatus = 'disponible' | 'bajo_stock' | 'agotado';
+type InventoryItemDisplay = InventoryItem & { status?: InventoryStatus; supplier: string };
 
 interface InventoryDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  item: InventoryItem | null;
-  onEdit: (item: InventoryItem) => void;
+  item: InventoryItemDisplay | null;
+  onEdit: (item: InventoryItemDisplay) => void;
   onDelete: (id: string) => void;
 }
 
 export function InventoryDetailsDialog({ open, onOpenChange, item, onEdit, onDelete }: InventoryDetailsDialogProps) {
   if (!item) return null;
 
-  const getStatusBadge = (status: InventoryItem['status']) => {
+  const getStatusBadge = (status?: InventoryStatus) => {
+    if (!status) return null;
     const variants = {
       disponible: 'default',
       bajo_stock: 'secondary',
@@ -32,7 +36,7 @@ export function InventoryDetailsDialog({ open, onOpenChange, item, onEdit, onDel
     return <Badge variant={variants[status] as any}>{labels[status]}</Badge>;
   };
 
-  const totalValue = item.quantity * item.cost;
+  const totalValue = item.quantity * (item.unitPrice || 0);
   const isExpiringSoon = item.expirationDate && 
     new Date(item.expirationDate) <= new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
@@ -83,12 +87,18 @@ export function InventoryDetailsDialog({ open, onOpenChange, item, onEdit, onDel
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Stock Mínimo:</span>
-                  <span className="font-semibold text-foreground">{item.minStock} {item.unit}</span>
+                  <span className="font-semibold text-foreground">{item.minQuantity} {item.unit}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Unidad:</span>
                   <span className="font-semibold text-foreground capitalize">{item.unit}</span>
                 </div>
+                {item.location && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Ubicación:</span>
+                    <span className="font-semibold text-foreground">{item.location}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -96,17 +106,25 @@ export function InventoryDetailsDialog({ open, onOpenChange, item, onEdit, onDel
               <h3 className="text-sm font-medium text-muted-foreground mb-3">Información Financiera</h3>
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Costo Unitario:</span>
-                  <span className="font-semibold text-foreground">${item.cost.toFixed(2)}</span>
+                  <span className="text-sm text-muted-foreground">Precio Unitario:</span>
+                  <span className="font-semibold text-foreground">${item.unitPrice?.toFixed(2) || '0.00'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Valor Total:</span>
                   <span className="font-semibold text-primary">${totalValue.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Proveedor:</span>
-                  <span className="font-semibold text-foreground">{item.supplier}</span>
-                </div>
+                {item.supplier && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Proveedor:</span>
+                    <span className="font-semibold text-foreground">{item.supplier}</span>
+                  </div>
+                )}
+                {item.sku && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">SKU:</span>
+                    <span className="font-semibold text-foreground">{item.sku}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -116,15 +134,17 @@ export function InventoryDetailsDialog({ open, onOpenChange, item, onEdit, onDel
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-3">Fechas</h3>
             <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                <Calendar className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Última Reposición</p>
-                  <p className="text-sm font-semibold text-foreground">
-                    {format(new Date(item.lastRestockDate), "d 'de' MMMM, yyyy", { locale: es })}
-                  </p>
+              {item.createdAt && (
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <Calendar className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Fecha de Registro</p>
+                    <p className="text-sm font-semibold text-foreground">
+                      {format(new Date(item.createdAt), "d 'de' MMMM, yyyy", { locale: es })}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
               {item.expirationDate && (
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                   <Calendar className="h-5 w-5 text-muted-foreground" />

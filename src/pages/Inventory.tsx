@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search, AlertTriangle, Package } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,55 +8,135 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { InventoryFormDialog } from '@/components/inventory/InventoryFormDialog';
 import { InventoryDetailsDialog } from '@/components/inventory/InventoryDetailsDialog';
-import { mockInventory } from '@/data/mockInventory';
-import { InventoryItem } from '@/types/inventory';
+import { inventoryService, type InventoryItem } from '@/services';
+import { useToast } from '@/hooks/use-toast';
+
+type InventoryStatus = 'disponible' | 'bajo_stock' | 'agotado';
+type InventoryItemDisplay = InventoryItem & { status?: InventoryStatus; supplier: string };
 
 export default function Inventory() {
-  const [items, setItems] = useState<InventoryItem[]>(mockInventory);
+  const [items, setItems] = useState<InventoryItemDisplay[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<InventoryItemDisplay | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadItems();
+  }, []);
+
+  const loadItems = async () => {
+    try {
+      setLoading(true);
+      const page = await inventoryService.getAll(0, 100, searchTerm);
+      const itemsWithStatus = page.content.map(item => ({
+        ...item,
+        status: (item.quantity === 0 ? 'agotado' : item.quantity <= item.minQuantity ? 'bajo_stock' : 'disponible') as InventoryStatus,
+        supplier: item.supplier || 'Sin proveedor',
+      }));
+      setItems(itemsWithStatus);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudieron cargar los items',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+                         (item.supplier && item.supplier.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
     const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const handleAddItem = (data: Omit<InventoryItem, 'id' | 'status'>) => {
-    const newItem: InventoryItem = {
-      ...data,
-      id: String(items.length + 1),
-      status: data.quantity === 0 ? 'agotado' : data.quantity <= data.minStock ? 'bajo_stock' : 'disponible',
-    };
-    setItems([...items, newItem]);
-    setIsFormOpen(false);
+  const handleAddItem = async (data: any) => {
+    try {
+      await inventoryService.create({
+        name: data.name,
+        category: data.category,
+        description: data.description,
+        sku: data.sku,
+        quantity: data.quantity,
+        unit: data.unit,
+        minQuantity: data.minStock || data.minQuantity,
+        unitPrice: data.price || data.unitPrice,
+        supplier: data.supplier,
+        expirationDate: data.expirationDate,
+        location: data.location,
+      });
+      toast({
+        title: 'Item agregado',
+        description: 'El item se ha agregado al inventario',
+      });
+      setIsFormOpen(false);
+      loadItems();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo agregar el item',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleEditItem = (data: Omit<InventoryItem, 'id' | 'status'>) => {
+  const handleEditItem = async (data: any) => {
     if (!selectedItem) return;
-    const updatedItem: InventoryItem = {
-      ...data,
-      id: selectedItem.id,
-      status: data.quantity === 0 ? 'agotado' : data.quantity <= data.minStock ? 'bajo_stock' : 'disponible',
-    };
-    setItems(items.map(item => item.id === selectedItem.id ? updatedItem : item));
-    setIsFormOpen(false);
-    setSelectedItem(null);
+    try {
+      await inventoryService.update(selectedItem.id, {
+        name: data.name,
+        category: data.category,
+        description: data.description,
+        quantity: data.quantity,
+        minQuantity: data.minStock || data.minQuantity,
+        unitPrice: data.price || data.unitPrice,
+        supplier: data.supplier,
+      });
+      toast({
+        title: 'Item actualizado',
+        description: 'El item se ha actualizado correctamente',
+      });
+      setIsFormOpen(false);
+      setSelectedItem(null);
+      loadItems();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo actualizar el item',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleDeleteItem = (id: string) => {
-    setItems(items.filter(item => item.id !== id));
-    setIsDetailsOpen(false);
-    setSelectedItem(null);
+  const handleDeleteItem = async (id: string) => {
+    try {
+      await inventoryService.delete(id);
+      toast({
+        title: 'Item eliminado',
+        description: 'El item se ha eliminado del inventario',
+      });
+      setIsDetailsOpen(false);
+      setSelectedItem(null);
+      loadItems();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo eliminar el item',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const getStatusBadge = (status: InventoryItem['status']) => {
+  const getStatusBadge = (status?: InventoryStatus) => {
+    if (!status) return null;
     const variants = {
       disponible: 'default',
       bajo_stock: 'secondary',
@@ -172,7 +252,7 @@ export default function Inventory() {
                     <TableCell>
                       <div>
                         <p className="font-semibold text-foreground">{item.quantity} {item.unit}</p>
-                        <p className="text-xs text-muted-foreground">Mínimo: {item.minStock}</p>
+                        <p className="text-xs text-muted-foreground">Mínimo: {item.minQuantity}</p>
                       </div>
                     </TableCell>
                     <TableCell>{item.supplier}</TableCell>
