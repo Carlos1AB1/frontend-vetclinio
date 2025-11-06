@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -77,22 +77,41 @@ export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientF
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.breed || !formData.age || !formData.weight || !formData.ownerName) {
+    if (!formData.name || !formData.breed || !formData.weight || !formData.ownerName) {
       toast.error('Por favor completa todos los campos obligatorios');
       return;
     }
 
+    // Validar que la fecha de nacimiento sea en el pasado
+    if (formData.dateOfBirth) {
+      const birthDate = new Date(formData.dateOfBirth);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (birthDate >= today) {
+        toast.error('La fecha de nacimiento debe ser en el pasado');
+        return;
+      }
+    }
+
+    // Transformar los datos al formato que espera el backend
     const patientData = {
-      ...formData,
-      age: parseInt(formData.age),
+      name: formData.name,
+      species: formData.species.toUpperCase(), // Convertir a mayúsculas
+      breed: formData.breed,
+      birthDate: formData.dateOfBirth || null, // Cambiar de dateOfBirth a birthDate
+      gender: formData.sex.toUpperCase(), // Cambiar de sex a gender y convertir a MALE/FEMALE
+      color: formData.color || null,
       weight: parseFloat(formData.weight),
-      ownerId: formData.ownerId || Date.now().toString(),
-      ...(patient && { id: patient.id, createdAt: patient.createdAt }),
+      microchipNumber: formData.microchip || null,
+      allergies: null,
+      medicalHistory: null,
+      notes: formData.observations || null,
+      ownerId: formData.ownerId ? parseInt(formData.ownerId) : 1, // Convertir a número, usar 1 como temporal
+      ...(patient && { id: patient.id }),
     };
 
+    console.log('Enviando datos del paciente:', patientData); // Para debug
     onSubmit(patientData);
-    toast.success(patient ? 'Paciente actualizado exitosamente' : 'Paciente creado exitosamente');
-    onClose();
   };
 
   return (
@@ -100,6 +119,11 @@ export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientF
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{patient ? 'Editar Paciente' : 'Nuevo Paciente'}</DialogTitle>
+          <DialogDescription>
+            {patient 
+              ? 'Actualiza la información del paciente.' 
+              : 'Completa el formulario para registrar un nuevo paciente.'}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
@@ -226,6 +250,7 @@ export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientF
               <Input
                 id="dateOfBirth"
                 type="date"
+                max={new Date().toISOString().split('T')[0]}
                 value={formData.dateOfBirth}
                 onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
               />

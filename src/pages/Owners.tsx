@@ -4,13 +4,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { mockOwners } from '@/data/mockOwners';
 import { OwnerFormDialog } from '@/components/owners/OwnerFormDialog';
 import { OwnerDetailsDialog } from '@/components/owners/OwnerDetailsDialog';
 import type { Owner } from '@/types/owner';
 
 export default function Owners() {
-  const [owners] = useState<Owner[]>(mockOwners);
+  const [owners] = useState<Owner[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOwner, setSelectedOwner] = useState<Owner | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);

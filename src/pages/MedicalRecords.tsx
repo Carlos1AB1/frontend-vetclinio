@@ -4,13 +4,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { mockMedicalRecords } from '@/data/mockMedicalRecords';
 import { MedicalRecordFormDialog } from '@/components/medical-records/MedicalRecordFormDialog';
 import { MedicalRecordDetailsDialog } from '@/components/medical-records/MedicalRecordDetailsDialog';
 import type { MedicalRecord } from '@/types/medicalRecord';
 
 export default function MedicalRecords() {
-  const [records] = useState<MedicalRecord[]>(mockMedicalRecords);
+  const [records] = useState<MedicalRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRecord, setSelectedRecord] = useState<MedicalRecord | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);

@@ -5,13 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { mockAppointments } from '@/data/mockAppointments';
 import { AppointmentFormDialog } from '@/components/appointments/AppointmentFormDialog';
 import { AppointmentDetailsDialog } from '@/components/appointments/AppointmentDetailsDialog';
 import type { Appointment } from '@/types/appointment';
 
 export default function Appointments() {
-  const [appointments] = useState<Appointment[]>(mockAppointments);
+  const [appointments] = useState<Appointment[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
