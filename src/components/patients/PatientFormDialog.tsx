@@ -12,6 +12,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Patient, Species, Sex } from '@/types/patient';
+import { ownerService } from '@/services/ownerService';
+import type { Owner } from '@/types/owner';
 import { toast } from 'sonner';
 
 interface PatientFormDialogProps {
@@ -22,6 +24,8 @@ interface PatientFormDialogProps {
 }
 
 export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientFormDialogProps) {
+  const [owners, setOwners] = useState<Owner[]>([]);
+  const [loadingOwners, setLoadingOwners] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     species: 'dog' as Species,
@@ -37,6 +41,26 @@ export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientF
     observations: '',
     isActive: true,
   });
+
+  // Cargar propietarios al abrir el diálogo
+  useEffect(() => {
+    if (open) {
+      loadOwners();
+    }
+  }, [open]);
+
+  const loadOwners = async () => {
+    try {
+      setLoadingOwners(true);
+      const response = await ownerService.getAll(0, 100);
+      setOwners(response.content);
+    } catch (error) {
+      console.error('Error al cargar propietarios:', error);
+      toast.error('Error al cargar la lista de propietarios');
+    } finally {
+      setLoadingOwners(false);
+    }
+  };
 
   useEffect(() => {
     if (patient) {
@@ -77,8 +101,13 @@ export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientF
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.breed || !formData.weight || !formData.ownerName) {
+    if (!formData.name || !formData.breed || !formData.weight) {
       toast.error('Por favor completa todos los campos obligatorios');
+      return;
+    }
+
+    if (!formData.ownerId) {
+      toast.error('Por favor selecciona un propietario');
       return;
     }
 
@@ -106,7 +135,7 @@ export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientF
       allergies: null,
       medicalHistory: null,
       notes: formData.observations || null,
-      ownerId: formData.ownerId ? parseInt(formData.ownerId) : 1, // Convertir a número, usar 1 como temporal
+      ownerId: parseInt(formData.ownerId), // Convertir a número
       ...(patient && { id: patient.id }),
     };
 
@@ -225,14 +254,36 @@ export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientF
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ownerName">Propietario *</Label>
-            <Input
-              id="ownerName"
-              value={formData.ownerName}
-              onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
-              placeholder="Nombre del propietario"
-              required
-            />
+            <Label htmlFor="ownerId">Propietario *</Label>
+            <Select
+              value={formData.ownerId}
+              onValueChange={(value) => {
+                const selectedOwner = owners.find(o => o.id === value);
+                setFormData({ 
+                  ...formData, 
+                  ownerId: value,
+                  ownerName: selectedOwner ? `${selectedOwner.firstName} ${selectedOwner.lastName}` : ''
+                });
+              }}
+            >
+              <SelectTrigger id="ownerId">
+                <SelectValue placeholder={loadingOwners ? "Cargando propietarios..." : "Selecciona un propietario"} />
+              </SelectTrigger>
+              <SelectContent>
+                {owners.length === 0 && !loadingOwners && (
+                  <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                    No hay propietarios registrados.
+                    <br />
+                    Crea uno primero en la sección Propietarios.
+                  </div>
+                )}
+                {owners.map((owner) => (
+                  <SelectItem key={owner.id} value={owner.id}>
+                    {owner.firstName} {owner.lastName} - {owner.documentNumber}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">

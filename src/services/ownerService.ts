@@ -1,16 +1,5 @@
 import api from './api';
-
-export interface Owner {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  address: string;
-  city: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
+import type { Owner } from '@/types/owner';
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -28,10 +17,11 @@ export interface PageResponse<T> {
 
 export const ownerService = {
   async getAll(page = 0, size = 10, search = ''): Promise<PageResponse<Owner>> {
-    const params: any = { page, size };
+    // Usar el endpoint de paginación /owners/page
+    const params: any = { page, size, sortBy: 'lastName', sortDirection: 'ASC' };
     if (search) params.search = search;
     
-    const response = await api.get<ApiResponse<PageResponse<Owner>>>('/owners', { params });
+    const response = await api.get<ApiResponse<PageResponse<Owner>>>('/owners/page', { params });
     return response.data.data;
   },
 

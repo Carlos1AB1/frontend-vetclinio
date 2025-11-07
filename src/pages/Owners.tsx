@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Plus, Mail, Phone, MapPin, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -6,19 +6,51 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { OwnerFormDialog } from '@/components/owners/OwnerFormDialog';
 import { OwnerDetailsDialog } from '@/components/owners/OwnerDetailsDialog';
+import { ownerService } from '@/services/ownerService';
 import type { Owner } from '@/types/owner';
+import { toast } from 'sonner';
 
 export default function Owners() {
-  const [owners] = useState<Owner[]>([]);
+  const [owners, setOwners] = useState<Owner[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOwner, setSelectedOwner] = useState<Owner | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const filteredOwners = owners.filter((owner) =>
-    `${owner.firstName} ${owner.lastName} ${owner.documentNumber} ${owner.email}`
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
+  // Cargar propietarios al montar el componente
+  useEffect(() => {
+    loadOwners();
+  }, []);
+
+  const loadOwners = async () => {
+    try {
+      setLoading(true);
+      const response = await ownerService.getAll(0, 100, searchTerm);
+      setOwners(response.content || []);
+    } catch (error) {
+      console.error('Error al cargar propietarios:', error);
+      toast.error('Error al cargar propietarios');
+      setOwners([]); // Asegurar que siempre sea un array
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Buscar cuando cambia el término de búsqueda (con debounce)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadOwners();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const filteredOwners = searchTerm 
+    ? (owners || []).filter((owner) =>
+        `${owner.firstName} ${owner.lastName} ${owner.documentNumber} ${owner.email}`
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())
+      )
+    : (owners || []);
 
   const getDocumentTypeLabel = (type: string) => {
     const labels = {
@@ -39,7 +71,7 @@ export default function Owners() {
             Gestión de clientes y propietarios de mascotas
           </p>
         </div>
-        <OwnerFormDialog>
+        <OwnerFormDialog onSuccess={loadOwners}>
           <Button>
             <Plus className="mr-2 h-4 w-4" />
             Nuevo Propietario
@@ -59,8 +91,25 @@ export default function Owners() {
         </div>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredOwners.map((owner) => (
+      {loading && (
+        <Card className="p-12 text-center">
+          <p className="text-muted-foreground">Cargando propietarios...</p>
+        </Card>
+      )}
+
+      {!loading && filteredOwners.length === 0 && (
+        <Card className="p-12 text-center">
+          <p className="text-muted-foreground">
+            {searchTerm 
+              ? 'No se encontraron propietarios con esos criterios de búsqueda'
+              : 'No hay propietarios registrados. Crea el primero usando el botón "Nuevo Propietario"'}
+          </p>
+        </Card>
+      )}
+
+      {!loading && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredOwners.map((owner) => (
           <Card
             key={owner.id}
             className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
@@ -104,14 +153,7 @@ export default function Owners() {
             </div>
           </Card>
         ))}
-      </div>
-
-      {filteredOwners.length === 0 && (
-        <Card className="p-12 text-center">
-          <p className="text-muted-foreground">
-            No se encontraron propietarios con esos criterios de búsqueda
-          </p>
-        </Card>
+        </div>
       )}
 
       {selectedOwner && (

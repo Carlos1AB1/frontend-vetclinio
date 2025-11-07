@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { ownerService } from '@/services/ownerService';
 import type { Owner } from '@/types/owner';
 
 const formSchema = z.object({
@@ -48,10 +49,12 @@ type FormData = z.infer<typeof formSchema>;
 interface OwnerFormDialogProps {
   owner?: Owner;
   children: React.ReactNode;
+  onSuccess?: () => void;
 }
 
-export function OwnerFormDialog({ owner, children }: OwnerFormDialogProps) {
+export function OwnerFormDialog({ owner, children, onSuccess }: OwnerFormDialogProps) {
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   
   const form = useForm<FormData>({
@@ -69,14 +72,37 @@ export function OwnerFormDialog({ owner, children }: OwnerFormDialogProps) {
     },
   });
 
-  const onSubmit = (data: FormData) => {
-    console.log(owner ? 'Actualizar propietario:' : 'Crear propietario:', data);
-    toast({
-      title: owner ? 'Propietario actualizado' : 'Propietario creado',
-      description: `${data.firstName} ${data.lastName} ha sido ${owner ? 'actualizado' : 'registrado'} exitosamente.`,
-    });
-    setOpen(false);
-    form.reset();
+  const onSubmit = async (data: FormData) => {
+    try {
+      setLoading(true);
+      
+      if (owner) {
+        await ownerService.update(owner.id, data);
+        toast({
+          title: 'Propietario actualizado',
+          description: `${data.firstName} ${data.lastName} ha sido actualizado exitosamente.`,
+        });
+      } else {
+        await ownerService.create(data as Omit<Owner, 'id' | 'createdAt' | 'updatedAt'>);
+        toast({
+          title: 'Propietario creado',
+          description: `${data.firstName} ${data.lastName} ha sido registrado exitosamente.`,
+        });
+      }
+      
+      setOpen(false);
+      form.reset();
+      onSuccess?.(); // Recargar la lista
+    } catch (error: any) {
+      console.error('Error al guardar propietario:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo guardar el propietario',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -241,11 +267,11 @@ export function OwnerFormDialog({ owner, children }: OwnerFormDialogProps) {
             />
 
             <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
                 Cancelar
               </Button>
-              <Button type="submit">
-                {owner ? 'Actualizar' : 'Crear'} Propietario
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Guardando...' : owner ? 'Actualizar' : 'Crear'} Propietario
               </Button>
             </div>
           </form>
