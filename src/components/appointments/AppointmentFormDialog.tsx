@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -28,18 +29,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
+import { appointmentService } from '@/services/appointmentService';
+import { patientService } from '@/services/patientService';
+import { ownerService } from '@/services/ownerService';
+import { userService } from '@/services/userService';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Appointment } from '@/types/appointment';
 
 const formSchema = z.object({
   patientId: z.string().min(1, 'Seleccione un paciente'),
   ownerId: z.string().min(1, 'Seleccione un propietario'),
   veterinarianId: z.string().min(1, 'Seleccione un veterinario'),
-  date: z.string().min(1, 'Fecha es requerida'),
-  time: z.string().min(1, 'Hora es requerida'),
-  duration: z.number().min(15, 'Duración mínima 15 minutos').max(240, 'Duración máxima 240 minutos'),
-  reason: z.string().min(5, 'Motivo debe tener al menos 5 caracteres'),
-  status: z.enum(['scheduled', 'confirmed', 'in-progress', 'completed', 'cancelled']),
+  scheduledDate: z.string().min(1, 'Fecha y hora son requeridas'),
+  appointmentType: z.enum(['CONSULTATION', 'VACCINATION', 'SURGERY', 'CHECKUP', 'EMERGENCY']),
+  reason: z.string().min(10, 'El motivo debe tener al menos 10 caracteres'),
+  durationMinutes: z.string().min(1, 'Duración es requerida'),
   notes: z.string().optional(),
 });
 
@@ -48,45 +53,121 @@ type FormData = z.infer<typeof formSchema>;
 interface AppointmentFormDialogProps {
   appointment?: Appointment;
   children: React.ReactNode;
+  onSuccess?: () => void;
 }
 
-export function AppointmentFormDialog({ appointment, children }: AppointmentFormDialogProps) {
+export function AppointmentFormDialog({ appointment, children, onSuccess }: AppointmentFormDialogProps) {
   const [open, setOpen] = useState(false);
-  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [owners, setOwners] = useState<any[]>([]);
+  const [veterinarians, setVeterinarians] = useState<any[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
+  const { user } = useAuth();
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: appointment ? {
-      patientId: appointment.patientId,
-      ownerId: appointment.ownerId,
+      patientId: appointment.patientId.toString(),
+      ownerId: appointment.ownerId.toString(),
       veterinarianId: appointment.veterinarianId,
-      date: appointment.date,
-      time: appointment.time,
-      duration: appointment.duration,
+      scheduledDate: appointment.scheduledDate,
+      appointmentType: appointment.appointmentType,
       reason: appointment.reason,
-      status: appointment.status,
+      durationMinutes: appointment.durationMinutes.toString(),
       notes: appointment.notes || '',
     } : {
       patientId: '',
       ownerId: '',
-      veterinarianId: '',
-      date: '',
-      time: '',
-      duration: 30,
+      veterinarianId: user?.id || '',
+      scheduledDate: new Date().toISOString().slice(0, 16),
+      appointmentType: 'CONSULTATION',
       reason: '',
-      status: 'scheduled',
+      durationMinutes: '30',
       notes: '',
     },
   });
 
-  const onSubmit = (data: FormData) => {
-    console.log(appointment ? 'Actualizar cita:' : 'Crear cita:', data);
-    toast({
-      title: appointment ? 'Cita actualizada' : 'Cita creada',
-      description: `La cita ha sido ${appointment ? 'actualizada' : 'programada'} exitosamente.`,
-    });
-    setOpen(false);
-    form.reset();
+  useEffect(() => {
+    if (open) {
+      loadRealData();
+    }
+  }, [open]);
+
+  const loadRealData = async () => {
+    setLoadingData(true);
+    try {
+      console.log('🔄 Cargando datos reales desde backend...');
+      
+      const [patientsRes, ownersRes, usersRes] = await Promise.all([
+        patientService.getAll(0, 100),
+        ownerService.getAll(0, 100),
+        userService.getAll(0, 100),
+      ]);
+
+      console.log('✅ Pacientes:', patientsRes.content);
+      console.log('✅ Propietarios:', ownersRes.content);
+      console.log('✅ Veterinarios:', usersRes.content);
+
+      setPatients(patientsRes.content || []);
+      setOwners(ownersRes.content || []);
+      setVeterinarians(usersRes.content || []);
+
+      if (user && !appointment) {
+        form.setValue('veterinarianId', user.id);
+      }
+    } catch (error) {
+      console.error('❌ Error al cargar datos:', error);
+      toast.error('Error al cargar datos del formulario');
+      setPatients([]);
+      setOwners([]);
+      setVeterinarians([]);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const onSubmit = async (data: FormData) => {
+    try {
+      setLoading(true);
+      const payload = {
+        patientId: parseInt(data.patientId),
+        ownerId: parseInt(data.ownerId),
+        veterinarianId: data.veterinarianId,
+        scheduledDate: data.scheduledDate,
+        appointmentType: data.appointmentType,
+        reason: data.reason,
+        durationMinutes: parseInt(data.durationMinutes),
+        notes: data.notes || undefined,
+      };
+
+      console.log('📤 Enviando al backend:', payload);
+
+      if (appointment) {
+        await appointmentService.update(appointment.id, payload);
+        toast.success('Cita actualizada exitosamente');
+      } else {
+        await appointmentService.create(payload);
+        toast.success('Cita creada exitosamente');
+      }
+      
+      console.log('✅ Cita guardada, cerrando diálogo y llamando onSuccess...');
+      setOpen(false);
+      form.reset();
+      
+      if (onSuccess) {
+        console.log('🔄 Ejecutando onSuccess callback...');
+        onSuccess();
+      } else {
+        console.warn('⚠️ onSuccess no está definido!');
+      }
+    } catch (error: any) {
+      console.error('❌ Error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Error al guardar';
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -110,19 +191,34 @@ export function AppointmentFormDialog({ appointment, children }: AppointmentForm
                 name="patientId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Paciente</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel>Paciente *</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                      disabled={loadingData || !!appointment}
+                    >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar paciente" />
+                          <SelectValue placeholder="Seleccionar paciente REAL" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="pet-1">Max (Perro)</SelectItem>
-                        <SelectItem value="pet-2">Luna (Gato)</SelectItem>
-                        <SelectItem value="pet-3">Rocky (Perro)</SelectItem>
+                        {loadingData ? (
+                          <SelectItem value="_loading" disabled>Cargando pacientes...</SelectItem>
+                        ) : patients.length === 0 ? (
+                          <SelectItem value="_empty" disabled>No hay pacientes disponibles</SelectItem>
+                        ) : (
+                          patients.map((patient) => (
+                            <SelectItem key={patient.id} value={patient.id.toString()}>
+                              {patient.name} - {patient.species} ({patient.ownerName})
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
+                    <FormDescription>
+                      Datos cargados desde el backend
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -133,19 +229,34 @@ export function AppointmentFormDialog({ appointment, children }: AppointmentForm
                 name="ownerId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Propietario</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel>Propietario *</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                      disabled={loadingData}
+                    >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar propietario" />
+                          <SelectValue placeholder="Seleccionar propietario REAL" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="owner-1">María García</SelectItem>
-                        <SelectItem value="owner-2">Carlos Rodríguez</SelectItem>
-                        <SelectItem value="owner-3">Ana Martínez</SelectItem>
+                        {loadingData ? (
+                          <SelectItem value="_loading" disabled>Cargando propietarios...</SelectItem>
+                        ) : owners.length === 0 ? (
+                          <SelectItem value="_empty" disabled>No hay propietarios disponibles</SelectItem>
+                        ) : (
+                          owners.map((owner) => (
+                            <SelectItem key={owner.id} value={owner.id.toString()}>
+                              {owner.firstName} {owner.lastName} - {owner.email}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
+                    <FormDescription>
+                      Datos cargados desde el backend
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -157,33 +268,56 @@ export function AppointmentFormDialog({ appointment, children }: AppointmentForm
               name="veterinarianId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Veterinario</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormLabel>Veterinario *</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    defaultValue={field.value}
+                    disabled={loadingData}
+                  >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar veterinario" />
+                        <SelectValue placeholder="Seleccionar veterinario REAL" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="vet-1">Dr. Juan Pérez</SelectItem>
-                      <SelectItem value="vet-2">Dra. Ana López</SelectItem>
+                      {loadingData ? (
+                        <SelectItem value="_loading" disabled>Cargando veterinarios...</SelectItem>
+                      ) : veterinarians.length === 0 ? (
+                        <SelectItem value="_empty" disabled>No hay veterinarios disponibles</SelectItem>
+                      ) : (
+                        veterinarians.map((vet) => (
+                          <SelectItem key={vet.id} value={vet.id}>
+                            {vet.firstName} {vet.lastName} - {vet.username}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
+                  <FormDescription>
+                    Datos cargados desde el backend
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="date"
+                name="scheduledDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Fecha</FormLabel>
+                    <FormLabel>Fecha y Hora de la Cita *</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input 
+                        type="datetime-local" 
+                        min={new Date().toISOString().slice(0, 16)}
+                        {...field} 
+                      />
                     </FormControl>
+                    <FormDescription>
+                      Debe ser una fecha futura
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -191,31 +325,22 @@ export function AppointmentFormDialog({ appointment, children }: AppointmentForm
 
               <FormField
                 control={form.control}
-                name="time"
+                name="durationMinutes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Hora</FormLabel>
-                    <FormControl>
-                      <Input type="time" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="duration"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Duración (min)</FormLabel>
+                    <FormLabel>Duración (minutos) *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
+                        min="15"
+                        max="480"
+                        placeholder="30"
                         {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
                       />
                     </FormControl>
+                    <FormDescription>
+                      Mínimo 15, máximo 480 minutos
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -224,22 +349,22 @@ export function AppointmentFormDialog({ appointment, children }: AppointmentForm
 
             <FormField
               control={form.control}
-              name="status"
+              name="appointmentType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Estado</FormLabel>
+                  <FormLabel>Tipo de Cita *</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar estado" />
+                        <SelectValue placeholder="Seleccionar tipo" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="scheduled">Programada</SelectItem>
-                      <SelectItem value="confirmed">Confirmada</SelectItem>
-                      <SelectItem value="in-progress">En Curso</SelectItem>
-                      <SelectItem value="completed">Completada</SelectItem>
-                      <SelectItem value="cancelled">Cancelada</SelectItem>
+                      <SelectItem value="CONSULTATION">🩺 Consulta</SelectItem>
+                      <SelectItem value="VACCINATION">💉 Vacunación</SelectItem>
+                      <SelectItem value="SURGERY">🏥 Cirugía</SelectItem>
+                      <SelectItem value="CHECKUP">📋 Chequeo</SelectItem>
+                      <SelectItem value="EMERGENCY">🚨 Emergencia</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -252,9 +377,14 @@ export function AppointmentFormDialog({ appointment, children }: AppointmentForm
               name="reason"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Motivo de Consulta</FormLabel>
+                  <FormLabel>Motivo de la Consulta *</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ej: Vacunación, Control, Emergencia..." {...field} />
+                    <Textarea
+                      placeholder="Describa el motivo de la cita..."
+                      className="resize-none"
+                      rows={3}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -266,11 +396,12 @@ export function AppointmentFormDialog({ appointment, children }: AppointmentForm
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notas Adicionales</FormLabel>
+                  <FormLabel>Notas Adicionales (Opcional)</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Observaciones o información adicional..."
+                      placeholder="Información adicional..."
                       className="resize-none"
+                      rows={2}
                       {...field}
                     />
                   </FormControl>
@@ -280,11 +411,15 @@ export function AppointmentFormDialog({ appointment, children }: AppointmentForm
             />
 
             <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOpen(false)}
+              >
                 Cancelar
               </Button>
-              <Button type="submit">
-                {appointment ? 'Actualizar' : 'Crear'} Cita
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Guardando...' : appointment ? 'Actualizar' : 'Crear Cita'}
               </Button>
             </div>
           </form>

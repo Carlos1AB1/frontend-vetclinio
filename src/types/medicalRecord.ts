@@ -1,23 +1,50 @@
 export interface MedicalRecord {
-  id: string;
-  patientId: string;
+  id: number;
+  patientId: number; // Cambiado de string a number
   patientName: string;
-  appointmentId?: string;
+  ownerName?: string;
+  appointmentId?: number;
   veterinarianId: string;
   veterinarianName: string;
-  date: string;
-  reason: string;
-  symptoms: string;
+  recordDate: string;
   diagnosis: string;
   treatment: string;
-  prescriptions?: string;
+  symptoms?: string;
+  vitalSigns?: string;
   weight?: number;
   temperature?: number;
-  heartRate?: number;
-  observations?: string;
-  nextVisit?: string;
+  notes?: string;
+  followUpRequired: boolean;
+  followUpDate?: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export type MedicalRecordFormData = Omit<MedicalRecord, 'id' | 'patientName' | 'veterinarianName' | 'createdAt' | 'updatedAt'>;
+export interface CreateMedicalRecordRequest {
+  patientId: number; // Cambiado de string a number
+  appointmentId?: number;
+  veterinarianId: string;
+  recordDate: string;
+  diagnosis: string;
+  treatment: string;
+  symptoms?: string;
+  vitalSigns?: string;
+  weight?: number;
+  temperature?: number;
+  notes?: string;
+  followUpRequired?: boolean;
+  followUpDate?: string;
+}
+
+export interface UpdateMedicalRecordRequest {
+  diagnosis?: string;
+  treatment?: string;
+  symptoms?: string;
+  vitalSigns?: string;
+  weight?: number;
+  temperature?: number;
+  notes?: string;
+  followUpRequired?: boolean;
+  followUpDate?: string;
+}

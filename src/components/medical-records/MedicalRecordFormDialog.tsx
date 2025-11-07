@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
@@ -20,6 +21,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import {
   Select,
@@ -28,24 +30,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
+import { medicalRecordService } from '@/services/medicalRecordService';
+import { patientService } from '@/services/patientService';
+import { userService } from '@/services/userService';
+import { useAuth } from '@/contexts/AuthContext';
 import type { MedicalRecord } from '@/types/medicalRecord';
 
 const formSchema = z.object({
   patientId: z.string().min(1, 'Seleccione un paciente'),
   veterinarianId: z.string().min(1, 'Seleccione un veterinario'),
-  appointmentId: z.string().optional(),
-  date: z.string().min(1, 'Fecha es requerida'),
-  reason: z.string().min(5, 'Motivo debe tener al menos 5 caracteres'),
-  symptoms: z.string().min(5, 'Síntomas debe tener al menos 5 caracteres'),
-  diagnosis: z.string().min(5, 'Diagnóstico debe tener al menos 5 caracteres'),
-  treatment: z.string().min(5, 'Tratamiento debe tener al menos 5 caracteres'),
-  prescriptions: z.string().optional(),
-  weight: z.number().positive('Peso debe ser positivo').optional(),
-  temperature: z.number().min(35).max(42, 'Temperatura fuera de rango').optional(),
-  heartRate: z.number().positive('Frecuencia cardíaca debe ser positiva').optional(),
-  observations: z.string().optional(),
-  nextVisit: z.string().optional(),
+  recordDate: z.string().min(1, 'Fecha y hora son requeridas'),
+  diagnosis: z.string().min(10, 'Diagnóstico debe tener al menos 10 caracteres'),
+  treatment: z.string().min(10, 'Tratamiento debe tener al menos 10 caracteres'),
+  symptoms: z.string().optional(),
+  vitalSigns: z.string().optional(),
+  weight: z.string().optional(),
+  temperature: z.string().optional(),
+  notes: z.string().optional(),
+  followUpRequired: z.boolean().default(false),
+  followUpDate: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -53,55 +57,120 @@ type FormData = z.infer<typeof formSchema>;
 interface MedicalRecordFormDialogProps {
   record?: MedicalRecord;
   children: React.ReactNode;
+  onSuccess?: () => void;
 }
 
-export function MedicalRecordFormDialog({ record, children }: MedicalRecordFormDialogProps) {
+export function MedicalRecordFormDialog({ record, children, onSuccess }: MedicalRecordFormDialogProps) {
   const [open, setOpen] = useState(false);
-  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [veterinarians, setVeterinarians] = useState<any[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
+  const { user } = useAuth();
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: record ? {
-      patientId: record.patientId,
+      patientId: record.patientId.toString(),
       veterinarianId: record.veterinarianId,
-      appointmentId: record.appointmentId || '',
-      date: record.date,
-      reason: record.reason,
-      symptoms: record.symptoms,
+      recordDate: record.recordDate,
       diagnosis: record.diagnosis,
       treatment: record.treatment,
-      prescriptions: record.prescriptions || '',
-      weight: record.weight,
-      temperature: record.temperature,
-      heartRate: record.heartRate,
-      observations: record.observations || '',
-      nextVisit: record.nextVisit || '',
+      symptoms: record.symptoms || '',
+      vitalSigns: record.vitalSigns || '',
+      weight: record.weight?.toString() || '',
+      temperature: record.temperature?.toString() || '',
+      notes: record.notes || '',
+      followUpRequired: record.followUpRequired || false,
+      followUpDate: record.followUpDate || '',
     } : {
       patientId: '',
-      veterinarianId: '',
-      appointmentId: '',
-      date: new Date().toISOString().split('T')[0],
-      reason: '',
-      symptoms: '',
+      veterinarianId: user?.id || '',
+      recordDate: new Date().toISOString().slice(0, 16),
       diagnosis: '',
       treatment: '',
-      prescriptions: '',
-      weight: undefined,
-      temperature: undefined,
-      heartRate: undefined,
-      observations: '',
-      nextVisit: '',
+      symptoms: '',
+      vitalSigns: '',
+      weight: '',
+      temperature: '',
+      notes: '',
+      followUpRequired: false,
+      followUpDate: '',
     },
   });
 
-  const onSubmit = (data: FormData) => {
-    console.log(record ? 'Actualizar historia clínica:' : 'Crear historia clínica:', data);
-    toast({
-      title: record ? 'Historia clínica actualizada' : 'Historia clínica creada',
-      description: `El registro ha sido ${record ? 'actualizado' : 'creado'} exitosamente.`,
-    });
-    setOpen(false);
-    form.reset();
+  // Cargar DATOS REALES cuando se abre el diálogo
+  useEffect(() => {
+    if (open) {
+      loadRealData();
+    }
+  }, [open]);
+
+  const loadRealData = async () => {
+    setLoadingData(true);
+    try {
+      console.log('🔄 Cargando PACIENTES REALES desde backend...');
+      const patientsResponse = await patientService.getAll(0, 100);
+      console.log('✅ Pacientes:', patientsResponse.content);
+      setPatients(patientsResponse.content || []);
+
+      console.log('🔄 Cargando VETERINARIOS REALES desde backend...');
+      const usersResponse = await userService.getAll(0, 100);
+      console.log('✅ Veterinarios:', usersResponse.content);
+      setVeterinarians(usersResponse.content || []);
+
+      if (user && !record) {
+        form.setValue('veterinarianId', user.id);
+      }
+    } catch (error) {
+      console.error('❌ Error al cargar datos:', error);
+      toast.error('Error al cargar datos del formulario');
+      setPatients([]);
+      setVeterinarians([]);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const onSubmit = async (data: FormData) => {
+    try {
+      setLoading(true);
+
+      const payload = {
+        patientId: parseInt(data.patientId), // Convertir a número
+        veterinarianId: data.veterinarianId,
+        recordDate: data.recordDate,
+        diagnosis: data.diagnosis,
+        treatment: data.treatment,
+        symptoms: data.symptoms || undefined,
+        vitalSigns: data.vitalSigns || undefined,
+        weight: data.weight ? parseFloat(data.weight) : undefined,
+        temperature: data.temperature ? parseFloat(data.temperature) : undefined,
+        notes: data.notes || undefined,
+        followUpRequired: data.followUpRequired,
+        followUpDate: data.followUpRequired && data.followUpDate ? data.followUpDate : undefined,
+      };
+
+      console.log('📤 Enviando al backend:', payload);
+
+      if (record) {
+        await medicalRecordService.update(record.id, payload);
+        toast.success('Historia clínica actualizada');
+      } else {
+        await medicalRecordService.create(payload);
+        toast.success('Historia clínica creada exitosamente');
+      }
+      
+      setOpen(false);
+      form.reset();
+      onSuccess?.();
+    } catch (error: any) {
+      console.error('❌ Error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Error al guardar';
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -125,19 +194,34 @@ export function MedicalRecordFormDialog({ record, children }: MedicalRecordFormD
                 name="patientId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Paciente</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel>Paciente *</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                      disabled={loadingData || !!record}
+                    >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar paciente" />
+                          <SelectValue placeholder="Seleccionar paciente REAL" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="pet-1">Max (Perro)</SelectItem>
-                        <SelectItem value="pet-2">Luna (Gato)</SelectItem>
-                        <SelectItem value="pet-3">Rocky (Perro)</SelectItem>
+                        {loadingData ? (
+                          <SelectItem value="_loading" disabled>Cargando pacientes...</SelectItem>
+                        ) : patients.length === 0 ? (
+                          <SelectItem value="_empty" disabled>No hay pacientes disponibles</SelectItem>
+                        ) : (
+                          patients.map((patient) => (
+                            <SelectItem key={patient.id} value={patient.id}>
+                              {patient.name} - {patient.species} ({patient.ownerName})
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
+                    <FormDescription>
+                      Datos cargados desde el backend
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -148,18 +232,34 @@ export function MedicalRecordFormDialog({ record, children }: MedicalRecordFormD
                 name="veterinarianId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Veterinario</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel>Veterinario *</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                      disabled={loadingData}
+                    >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar veterinario" />
+                          <SelectValue placeholder="Seleccionar veterinario REAL" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="vet-1">Dr. Juan Pérez</SelectItem>
-                        <SelectItem value="vet-2">Dra. Ana López</SelectItem>
+                        {loadingData ? (
+                          <SelectItem value="_loading" disabled>Cargando veterinarios...</SelectItem>
+                        ) : veterinarians.length === 0 ? (
+                          <SelectItem value="_empty" disabled>No hay veterinarios disponibles</SelectItem>
+                        ) : (
+                          veterinarians.map((vet) => (
+                            <SelectItem key={vet.id} value={vet.id}>
+                              {vet.firstName} {vet.lastName} - {vet.username}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
+                    <FormDescription>
+                      Datos cargados desde el backend
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -169,13 +269,20 @@ export function MedicalRecordFormDialog({ record, children }: MedicalRecordFormD
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="date"
+                name="recordDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Fecha de Atención</FormLabel>
+                    <FormLabel>Fecha y Hora de Atención *</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input 
+                        type="datetime-local" 
+                        max={new Date().toISOString().slice(0, 16)}
+                        {...field} 
+                      />
                     </FormControl>
+                    <FormDescription>
+                      No puede ser una fecha futura
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -183,32 +290,25 @@ export function MedicalRecordFormDialog({ record, children }: MedicalRecordFormD
 
               <FormField
                 control={form.control}
-                name="nextVisit"
+                name="followUpDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Próxima Visita (Opcional)</FormLabel>
+                    <FormLabel>Fecha de Seguimiento (Opcional)</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input 
+                        type="datetime-local" 
+                        min={new Date().toISOString().slice(0, 16)}
+                        {...field} 
+                      />
                     </FormControl>
+                    <FormDescription>
+                      Debe ser una fecha futura
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-
-            <FormField
-              control={form.control}
-              name="reason"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Motivo de Consulta</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej: Vacunación, Control, Emergencia..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}
@@ -228,20 +328,18 @@ export function MedicalRecordFormDialog({ record, children }: MedicalRecordFormD
               )}
             />
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="weight"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Peso (kg)</FormLabel>
+                    <FormLabel>Peso (kg) - Opcional</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
-                        step="0.1"
+                        type="text"
                         placeholder="25.5"
                         {...field}
-                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -254,33 +352,12 @@ export function MedicalRecordFormDialog({ record, children }: MedicalRecordFormD
                 name="temperature"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Temperatura (°C)</FormLabel>
+                    <FormLabel>Temperatura (°C) - Opcional</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
-                        step="0.1"
+                        type="text"
                         placeholder="38.5"
                         {...field}
-                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="heartRate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Frecuencia Cardíaca</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="90"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -288,6 +365,28 @@ export function MedicalRecordFormDialog({ record, children }: MedicalRecordFormD
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="vitalSigns"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Signos Vitales - Opcional</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Ej: FC: 90 lpm, FR: 30 rpm, Mucosas rosadas, TRC < 2seg..."
+                      className="resize-none"
+                      rows={2}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Frecuencia cardíaca, respiratoria, mucosas, etc.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
@@ -312,11 +411,12 @@ export function MedicalRecordFormDialog({ record, children }: MedicalRecordFormD
               name="treatment"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tratamiento</FormLabel>
+                  <FormLabel>Tratamiento *</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Describa el tratamiento indicado..."
                       className="resize-none"
+                      rows={3}
                       {...field}
                     />
                   </FormControl>
@@ -327,14 +427,15 @@ export function MedicalRecordFormDialog({ record, children }: MedicalRecordFormD
 
             <FormField
               control={form.control}
-              name="prescriptions"
+              name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Prescripciones (Opcional)</FormLabel>
+                  <FormLabel>Notas Adicionales - Opcional</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Medicamentos y dosificación..."
+                      placeholder="Observaciones, recomendaciones, etc..."
                       className="resize-none"
+                      rows={2}
                       {...field}
                     />
                   </FormControl>
@@ -345,18 +446,23 @@ export function MedicalRecordFormDialog({ record, children }: MedicalRecordFormD
 
             <FormField
               control={form.control}
-              name="observations"
+              name="followUpRequired"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Observaciones (Opcional)</FormLabel>
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                   <FormControl>
-                    <Textarea
-                      placeholder="Observaciones adicionales..."
-                      className="resize-none"
-                      {...field}
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
                     />
                   </FormControl>
-                  <FormMessage />
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>
+                      ¿Requiere seguimiento?
+                    </FormLabel>
+                    <FormDescription>
+                      Marque si el paciente necesita una consulta de seguimiento
+                    </FormDescription>
+                  </div>
                 </FormItem>
               )}
             />

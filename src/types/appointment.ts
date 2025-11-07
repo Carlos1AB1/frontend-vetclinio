@@ -1,19 +1,40 @@
 export interface Appointment {
-  id: string;
-  patientId: string;
+  id: number;
+  patientId: number;
   patientName: string;
-  ownerId: string;
+  patientSpecies?: string;
+  ownerId: number;
   ownerName: string;
+  ownerPhone?: string;
   veterinarianId: string;
   veterinarianName: string;
-  date: string;
-  time: string;
-  duration: number; // minutes
+  scheduledDate: string;
+  appointmentType: 'CONSULTATION' | 'VACCINATION' | 'SURGERY' | 'CHECKUP' | 'EMERGENCY';
+  status: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   reason: string;
-  status: 'scheduled' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled';
   notes?: string;
+  durationMinutes: number;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export type AppointmentFormData = Omit<Appointment, 'id' | 'patientName' | 'ownerName' | 'veterinarianName' | 'createdAt' | 'updatedAt'>;
+export interface CreateAppointmentRequest {
+  patientId: number;
+  ownerId: number;
+  veterinarianId: string;
+  scheduledDate: string;
+  appointmentType: 'CONSULTATION' | 'VACCINATION' | 'SURGERY' | 'CHECKUP' | 'EMERGENCY';
+  reason: string;
+  notes?: string;
+  durationMinutes?: number;
+}
+
+export interface UpdateAppointmentRequest {
+  scheduledDate?: string;
+  appointmentType?: 'CONSULTATION' | 'VACCINATION' | 'SURGERY' | 'CHECKUP' | 'EMERGENCY';
+  status?: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  reason?: string;
+  notes?: string;
+  durationMinutes?: number;
+}
