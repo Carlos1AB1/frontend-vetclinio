@@ -65,9 +65,8 @@ export default function Inventory() {
         category: data.category,
         description: data.description,
         sku: data.sku,
-        quantity: data.quantity,
-        unit: data.unit,
-        minQuantity: data.minStock || data.minQuantity,
+        quantity: data.quantity || 0,
+        minStockLevel: data.minStock || data.minQuantity || 10, // Valor por defecto 10
         unitPrice: data.price || data.unitPrice,
         supplier: data.supplier,
         expirationDate: data.expirationDate,

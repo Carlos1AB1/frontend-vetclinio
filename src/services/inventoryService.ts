@@ -34,9 +34,15 @@ export interface PageResponse<T> {
 export const inventoryService = {
   async getAll(page = 0, size = 10, search = ''): Promise<PageResponse<InventoryItem>> {
     const params: any = { page, size };
-    if (search) params.search = search;
+    if (search) {
+      // Si hay búsqueda, usar el endpoint de búsqueda
+      const searchResponse = await api.get<ApiResponse<PageResponse<InventoryItem>>>('/inventory/search', {
+        params: { q: search, page, size },
+      });
+      return searchResponse.data.data;
+    }
     
-    const response = await api.get<ApiResponse<PageResponse<InventoryItem>>>('/inventory', { params });
+    const response = await api.get<ApiResponse<PageResponse<InventoryItem>>>('/inventory/page', { params });
     return response.data.data;
   },
 

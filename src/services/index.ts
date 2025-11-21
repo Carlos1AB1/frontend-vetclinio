@@ -8,6 +8,11 @@ export { inventoryService } from './inventoryService';
 export { userService } from './userService';
 export { roleService } from './roleService';
 export { dashboardService } from './dashboardService';
+export { agendaService } from './agendaService';
+export { prescriptionService } from './prescriptionService';
+export { informedConsentService } from './informedConsentService';
+export { clinicService } from './clinicService';
+export { reportService } from './reportService';
 
 // Export API instance for custom calls
 export { default as api } from './api';
@@ -22,3 +27,8 @@ export type { InventoryItem } from './inventoryService';
 export type { CreateUserRequest, UpdateUserRequest, ChangePasswordRequest } from './userService';
 export type { Role, Permission } from './roleService';
 export type { DashboardStats, AppointmentStats, RevenueStats } from './dashboardService';
+export type { AgendaViewType } from './agendaService';
+export type { Prescription, CreatePrescriptionRequest, UpdatePrescriptionRequest } from './prescriptionService';
+export type { InformedConsent, CreateInformedConsentRequest } from './informedConsentService';
+export type { ClinicService, CreateServiceRequest, UpdateServiceRequest } from './clinicService';
+export type { ReportType } from './reportService';

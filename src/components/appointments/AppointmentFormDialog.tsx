@@ -130,11 +130,20 @@ export function AppointmentFormDialog({ appointment, children, onSuccess }: Appo
   const onSubmit = async (data: FormData) => {
     try {
       setLoading(true);
+      // Convertir la fecha al formato ISO completo que espera el backend (LocalDateTime)
+      // El input datetime-local devuelve "YYYY-MM-DDTHH:mm", necesitamos asegurar formato completo
+      let formattedDate = data.scheduledDate;
+      // Si la fecha tiene formato "YYYY-MM-DDTHH:mm", agregar ":00" para segundos
+      if (formattedDate && formattedDate.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)) {
+        formattedDate = formattedDate + ':00';
+      }
+      // El backend espera LocalDateTime en formato ISO sin zona horaria: "YYYY-MM-DDTHH:mm:ss"
+      
       const payload = {
         patientId: parseInt(data.patientId),
         ownerId: parseInt(data.ownerId),
         veterinarianId: data.veterinarianId,
-        scheduledDate: data.scheduledDate,
+        scheduledDate: formattedDate,
         appointmentType: data.appointmentType,
         reason: data.reason,
         durationMinutes: parseInt(data.durationMinutes),
@@ -142,13 +151,20 @@ export function AppointmentFormDialog({ appointment, children, onSuccess }: Appo
       };
 
       console.log('📤 Enviando al backend:', payload);
+      console.log('📅 Fecha formateada:', formattedDate);
 
       if (appointment) {
         await appointmentService.update(appointment.id, payload);
         toast.success('Cita actualizada exitosamente');
+        // Notificar que se actualizó una cita
+        localStorage.setItem('appointment_updated', Date.now().toString());
+        window.dispatchEvent(new Event('appointment_updated'));
       } else {
         await appointmentService.create(payload);
         toast.success('Cita creada exitosamente');
+        // Notificar que se creó una cita
+        localStorage.setItem('appointment_created', Date.now().toString());
+        window.dispatchEvent(new Event('appointment_created'));
       }
       
       console.log('✅ Cita guardada, cerrando diálogo y llamando onSuccess...');

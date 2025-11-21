@@ -65,7 +65,7 @@ export const patientService = {
 
   async search(searchTerm: string): Promise<Patient[]> {
     const response = await api.get<ApiResponse<Patient[]>>('/patients/search', {
-      params: { q: searchTerm },
+      params: { name: searchTerm },
     });
     return response.data.data;
   },

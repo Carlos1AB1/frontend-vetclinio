@@ -80,17 +80,62 @@ export const appointmentService = {
   },
 
   async search(searchTerm: string): Promise<Appointment[]> {
-    const response = await api.get<ApiResponse<Appointment[]>>('/appointments/search', {
-      params: { searchTerm },
+    // El backend no tiene endpoint de búsqueda, usar getAll y filtrar en el frontend
+    const response = await api.get<ApiResponse<PageResponse<Appointment>>>('/appointments/page', {
+      params: { page: 0, size: 100 },
+    });
+    const appointments = response.data.data.content;
+    // Filtrar por término de búsqueda en el frontend
+    return appointments.filter(apt => 
+      apt.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      apt.ownerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      apt.appointmentType?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  },
+
+  async cancel(id: number): Promise<void> {
+    await api.put(`/appointments/${id}/cancel`);
+  },
+
+  async confirm(id: number): Promise<Appointment> {
+    const response = await api.put<ApiResponse<Appointment>>(`/appointments/${id}`, {
+      status: 'CONFIRMED',
     });
     return response.data.data;
   },
 
-  async cancel(id: number): Promise<Appointment> {
-    return this.updateStatus(id, 'CANCELLED');
+  /**
+   * Acciones desde recordatorios (RF018)
+   */
+  async confirmFromReminder(id: number, token: string): Promise<Appointment> {
+    const response = await api.get<ApiResponse<Appointment>>(`/appointments/${id}/confirm`, {
+      params: { token },
+    });
+    return response.data.data;
   },
 
-  async confirm(id: number): Promise<Appointment> {
-    return this.updateStatus(id, 'CONFIRMED');
+  async cancelFromReminder(id: number, token: string): Promise<void> {
+    await api.get(`/appointments/${id}/cancel-reminder`, {
+      params: { token },
+    });
+  },
+
+  async rescheduleFromReminder(
+    id: number,
+    token: string,
+    newScheduledDate: string,
+    reason?: string
+  ): Promise<Appointment> {
+    const response = await api.post<ApiResponse<Appointment>>(
+      `/appointments/${id}/reschedule`,
+      {
+        newScheduledDate,
+        reason,
+      },
+      {
+        params: { token },
+      }
+    );
+    return response.data.data;
   },
 };

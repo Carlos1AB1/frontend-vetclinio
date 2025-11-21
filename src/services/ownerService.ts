@@ -45,9 +45,9 @@ export const ownerService = {
   },
 
   async search(searchTerm: string): Promise<Owner[]> {
-    const response = await api.get<ApiResponse<Owner[]>>('/owners/search', {
-      params: { q: searchTerm },
+    const response = await api.get<ApiResponse<PageResponse<Owner>>>('/owners/search', {
+      params: { query: searchTerm, page: 0, size: 100 },
     });
-    return response.data.data;
+    return response.data.data.content;
   },
 };
