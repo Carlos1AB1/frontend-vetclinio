@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,6 +71,19 @@ export default function Login() {
               {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
             </Button>
           </form>
+          
+          <div className="mt-4 text-center text-sm">
+            <Link to="/forgot-password" className="text-primary hover:underline">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
+          
+          <div className="mt-4 text-center text-sm">
+            <span className="text-muted-foreground">¿No tienes cuenta? </span>
+            <Link to="/register" className="text-primary hover:underline">
+              Regístrate
+            </Link>
+          </div>
           
           <div className="mt-6 rounded-lg bg-muted p-4">
             <p className="text-xs font-medium text-muted-foreground mb-2">Usuarios de prueba:</p>

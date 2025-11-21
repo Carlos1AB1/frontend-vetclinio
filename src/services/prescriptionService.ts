@@ -5,14 +5,17 @@ export interface Prescription {
   medicalRecordId: number;
   patientId: number;
   patientName?: string;
-  medication: string;
+  medicationName: string;
   dosage: string;
   frequency: string;
   duration: string;
   instructions?: string;
   startDate: string;
   endDate?: string;
-  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  status?: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  isActive?: boolean;
+  isExpired?: boolean;
+  isCurrentlyActive?: boolean;
   prescribedBy?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -20,7 +23,8 @@ export interface Prescription {
 
 export interface CreatePrescriptionRequest {
   medicalRecordId: number;
-  medication: string;
+  patientId: number;
+  medicationName: string;
   dosage: string;
   frequency: string;
   duration: string;
@@ -30,7 +34,7 @@ export interface CreatePrescriptionRequest {
 }
 
 export interface UpdatePrescriptionRequest {
-  medication?: string;
+  medicationName?: string;
   dosage?: string;
   frequency?: string;
   duration?: string;

@@ -1,4 +1,4 @@
-import { Home, Users, Calendar, FileText, Package, BarChart3, Settings, LogOut, PawPrint, UserCircle } from 'lucide-react';
+import { Home, Users, Calendar, FileText, Package, BarChart3, Settings, LogOut, PawPrint, UserCircle, Pill, Briefcase, ClipboardCheck, CalendarDays } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -8,8 +8,12 @@ const navigation = [
   { name: 'Pacientes', href: '/patients', icon: PawPrint, roles: ['admin', 'veterinarian', 'receptionist'] },
   { name: 'Propietarios', href: '/owners', icon: Users, roles: ['admin', 'veterinarian', 'receptionist'] },
   { name: 'Citas', href: '/appointments', icon: Calendar, roles: ['admin', 'veterinarian', 'receptionist'] },
+  { name: 'Agenda', href: '/agenda', icon: CalendarDays, roles: ['admin', 'veterinarian', 'receptionist'] },
   { name: 'Historias Clínicas', href: '/medical-records', icon: FileText, roles: ['admin', 'veterinarian'] },
+  { name: 'Prescripciones', href: '/prescriptions', icon: Pill, roles: ['admin', 'veterinarian'] },
+  { name: 'Consentimientos', href: '/informed-consents', icon: ClipboardCheck, roles: ['admin', 'veterinarian'] },
   { name: 'Inventario', href: '/inventory', icon: Package, roles: ['admin', 'veterinarian'] },
+  { name: 'Servicios', href: '/services', icon: Briefcase, roles: ['admin', 'veterinarian', 'receptionist'] },
   { name: 'Reportes', href: '/reports', icon: BarChart3, roles: ['admin'] },
   { name: 'Usuarios', href: '/users', icon: UserCircle, roles: ['admin'] },
   { name: 'Configuración', href: '/settings', icon: Settings, roles: ['admin'] },

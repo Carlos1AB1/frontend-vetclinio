@@ -8,12 +8,19 @@ import { ProtectedRoute } from "@/components/Layout/ProtectedRoute";
 import { DashboardLayout } from "@/components/Layout/DashboardLayout";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Patients from "./pages/Patients";
 import Owners from "./pages/Owners";
 import Appointments from "./pages/Appointments";
 import MedicalRecords from "./pages/MedicalRecords";
+import Prescriptions from "./pages/Prescriptions";
 import Inventory from "./pages/Inventory";
+import Services from "./pages/Services";
+import InformedConsents from "./pages/InformedConsents";
+import Agenda from "./pages/Agenda";
 import Reports from "./pages/Reports";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
@@ -31,6 +38,9 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route
               path="/dashboard"
               element={
@@ -82,11 +92,51 @@ const App = () => (
               }
             />
             <Route
+              path="/prescriptions"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Prescriptions />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/inventory"
               element={
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Inventory />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/services"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Services />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/informed-consents"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <InformedConsents />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/agenda"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Agenda />
                   </DashboardLayout>
                 </ProtectedRoute>
               }

@@ -70,4 +70,35 @@ export const authService = {
   getRefreshToken(): string | null {
     return localStorage.getItem('vetclinic_refresh_token');
   },
+
+  async register(data: {
+    username: string;
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    phone?: string;
+    roles?: string[];
+  }): Promise<LoginResponse> {
+    const response = await api.post<LoginResponse>('/auth/register', data);
+    return response.data;
+  },
+
+  async forgotPassword(email: string): Promise<void> {
+    await api.post('/auth/forgot-password', { email });
+  },
+
+  async resetPassword(data: {
+    token: string;
+    newPassword: string;
+  }): Promise<void> {
+    await api.post('/auth/reset-password', data);
+  },
+
+  async changePassword(data: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<void> {
+    await api.post('/auth/change-password', data);
+  },
 };

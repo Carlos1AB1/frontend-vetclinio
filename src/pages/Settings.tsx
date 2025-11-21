@@ -7,10 +7,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Building2, Clock, Bell, Mail, Save } from 'lucide-react';
+import { Building2, Clock, Bell, Mail, Save, Lock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { authService } from '@/services/authService';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Settings() {
+  const { user } = useAuth();
   const [clinicName, setClinicName] = useState('VetClinic');
   const [clinicAddress, setClinicAddress] = useState('Calle Principal 123');
   const [clinicPhone, setClinicPhone] = useState('+1 234 567 8900');
@@ -20,6 +23,12 @@ export default function Settings() {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [smsNotifications, setSmsNotifications] = useState(false);
   const [appointmentReminders, setAppointmentReminders] = useState(true);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const handleSaveClinicInfo = () => {
     toast({
@@ -42,6 +51,52 @@ export default function Settings() {
     });
   };
 
+  const handleChangePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        title: 'Error',
+        description: 'Las contraseñas no coinciden',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast({
+        title: 'Error',
+        description: 'La contraseña debe tener al menos 6 caracteres',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+      await authService.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+      toast({
+        title: 'Éxito',
+        description: 'Contraseña cambiada correctamente',
+      });
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || 'Error al cambiar la contraseña';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -62,6 +117,10 @@ export default function Settings() {
           <TabsTrigger value="notifications">
             <Bell className="mr-2 h-4 w-4" />
             Notificaciones
+          </TabsTrigger>
+          <TabsTrigger value="password">
+            <Lock className="mr-2 h-4 w-4" />
+            Contraseña
           </TabsTrigger>
         </TabsList>
 
@@ -266,6 +325,61 @@ export default function Settings() {
                 <Button onClick={handleSaveNotifications}>
                   <Save className="mr-2 h-4 w-4" />
                   Guardar Preferencias
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="password">
+          <Card className="p-6">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-4">Cambiar Contraseña</h3>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="currentPassword">Contraseña Actual *</Label>
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      placeholder="Ingresa tu contraseña actual"
+                      value={passwordData.currentPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="newPassword">Nueva Contraseña *</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      placeholder="Mínimo 6 caracteres"
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                      minLength={6}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="confirmPassword">Confirmar Nueva Contraseña *</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="Confirma tu nueva contraseña"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                      minLength={6}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex justify-end">
+                <Button onClick={handleChangePassword} disabled={changingPassword}>
+                  <Save className="mr-2 h-4 w-4" />
+                  {changingPassword ? 'Cambiando...' : 'Cambiar Contraseña'}
                 </Button>
               </div>
             </div>

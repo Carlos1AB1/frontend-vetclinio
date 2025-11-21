@@ -7,6 +7,7 @@ export interface ClinicService {
   category: string;
   price: number;
   durationMinutes?: number;
+  requiresAppointment?: boolean;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -17,7 +18,8 @@ export interface CreateServiceRequest {
   description?: string;
   category: string;
   price: number;
-  durationMinutes?: number;
+  durationMinutes: number;
+  requiresAppointment: boolean;
 }
 
 export interface UpdateServiceRequest {

@@ -4,23 +4,33 @@ export interface InformedConsent {
   id: number;
   patientId: number;
   patientName?: string;
+  ownerId?: number;
+  ownerName?: string;
+  veterinarianId?: string;
+  veterinarianName?: string;
+  appointmentId?: number;
   procedureType: string;
-  description: string;
+  procedureDescription?: string;
+  description?: string;
   risks?: string;
   benefits?: string;
   alternatives?: string;
-  signedBy?: string;
-  signature?: string;
-  signedAt?: string;
-  status: 'PENDING' | 'SIGNED' | 'CANCELLED';
+  ownerSignature?: string;
+  signedDate?: string;
+  isSigned?: boolean;
+  isActive?: boolean;
+  consentDocumentPath?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
 export interface CreateInformedConsentRequest {
   patientId: number;
+  ownerId: number;
+  veterinarianId: string;
+  appointmentId?: number;
   procedureType: string;
-  description: string;
+  procedureDescription: string;
   risks?: string;
   benefits?: string;
   alternatives?: string;
