@@ -50,4 +50,21 @@ export const ownerService = {
     });
     return response.data.data.content;
   },
+
+  // ========== NUEVOS ENDPOINTS ==========
+
+  async getAllSimple(): Promise<Owner[]> {
+    const response = await api.get<ApiResponse<Owner[]>>('/owners');
+    return response.data.data;
+  },
+
+  async count(): Promise<number> {
+    const response = await api.get<ApiResponse<number>>('/owners/count');
+    return response.data.data;
+  },
+
+  async getByCity(city: string): Promise<Owner[]> {
+    const response = await api.get<ApiResponse<Owner[]>>(`/owners/city/${city}`);
+    return response.data.data;
+  },
 };

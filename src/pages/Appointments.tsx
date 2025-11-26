@@ -62,6 +62,18 @@ export default function Appointments() {
     }
   };
 
+  const handleCancel = async (id: number) => {
+    try {
+      await appointmentService.cancel(id);
+      toast.success('Cita cancelada exitosamente');
+      loadAppointments();
+      setIsDetailsOpen(false);
+    } catch (error: any) {
+      console.error('❌ Error al cancelar:', error);
+      toast.error('Error al cancelar la cita');
+    }
+  };
+
   const formatDateTime = (dateString: string) => {
     return format(new Date(dateString), "dd 'de' MMMM yyyy 'a las' HH:mm", { locale: es });
   };
@@ -105,6 +117,7 @@ export default function Appointments() {
     SCHEDULED: appointments.filter(a => a.status === 'SCHEDULED').length,
     CONFIRMED: appointments.filter(a => a.status === 'CONFIRMED').length,
     COMPLETED: appointments.filter(a => a.status === 'COMPLETED').length,
+    CANCELLED: appointments.filter(a => a.status === 'CANCELLED').length,
   };
 
   return (
@@ -125,11 +138,12 @@ export default function Appointments() {
       </div>
 
       <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="all">Todas ({statusCounts.all})</TabsTrigger>
           <TabsTrigger value="SCHEDULED">Programadas ({statusCounts.SCHEDULED})</TabsTrigger>
           <TabsTrigger value="CONFIRMED">Confirmadas ({statusCounts.CONFIRMED})</TabsTrigger>
           <TabsTrigger value="COMPLETED">Completadas ({statusCounts.COMPLETED})</TabsTrigger>
+          <TabsTrigger value="CANCELLED">Canceladas ({statusCounts.CANCELLED})</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -237,6 +251,7 @@ export default function Appointments() {
             setIsDetailsOpen(false);
             // Aquí se podría abrir el formulario de edición
           }}
+          onCancel={() => handleCancel(selectedAppointment.id)}
           onDelete={() => handleDelete(selectedAppointment.id)}
         />
       )}

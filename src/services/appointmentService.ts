@@ -138,4 +138,16 @@ export const appointmentService = {
     );
     return response.data.data;
   },
+
+  // ========== NUEVO ENDPOINT ==========
+
+  async count(): Promise<number> {
+    const response = await api.get<ApiResponse<number>>('/appointments/count');
+    return response.data.data;
+  },
+
+  async getUpcoming(): Promise<Appointment[]> {
+    const response = await api.get<ApiResponse<Appointment[]>>('/appointments/upcoming');
+    return response.data.data;
+  },
 };

@@ -13,6 +13,7 @@ const statusStyles = {
   IN_PROGRESS: { bg: 'bg-warning/10', text: 'text-warning', label: 'En Progreso' },
   SCHEDULED: { bg: 'bg-muted', text: 'text-muted-foreground', label: 'Programada' },
   CONFIRMED: { bg: 'bg-info/10', text: 'text-info', label: 'Confirmada' },
+  CANCELLED: { bg: 'bg-destructive/10', text: 'text-destructive', label: 'Cancelada' },
 };
 
 export default function Dashboard() {
@@ -243,10 +244,10 @@ export default function Dashboard() {
                     <p className="text-sm font-medium text-foreground">{appointment.time}</p>
                     <span
                       className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                        statusStyles[appointment.status].bg
-                      } ${statusStyles[appointment.status].text}`}
+                        (statusStyles[appointment.status] || statusStyles.SCHEDULED).bg
+                      } ${(statusStyles[appointment.status] || statusStyles.SCHEDULED).text}`}
                     >
-                      {statusStyles[appointment.status].label}
+                      {(statusStyles[appointment.status] || statusStyles.SCHEDULED).label}
                     </span>
                   </div>
                 </div>

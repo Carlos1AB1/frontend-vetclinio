@@ -59,4 +59,23 @@ export const medicalRecordService = {
     });
     return response.data.data;
   },
+
+  // ========== NUEVOS ENDPOINTS ==========
+
+  async getByDateRange(startDate: string, endDate: string): Promise<MedicalRecord[]> {
+    const response = await api.get<ApiResponse<MedicalRecord[]>>('/medical-records/date-range', {
+      params: { startDate, endDate },
+    });
+    return response.data.data;
+  },
+
+  async getFollowUpRecords(): Promise<MedicalRecord[]> {
+    const response = await api.get<ApiResponse<MedicalRecord[]>>('/medical-records/follow-up');
+    return response.data.data;
+  },
+
+  async count(): Promise<number> {
+    const response = await api.get<ApiResponse<number>>('/medical-records/count');
+    return response.data.data;
+  },
 };

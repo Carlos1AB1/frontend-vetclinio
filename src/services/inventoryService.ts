@@ -90,4 +90,33 @@ export const inventoryService = {
     });
     return response.data.data;
   },
+
+  // ========== NUEVOS ENDPOINTS ==========
+
+  async getOutOfStock(): Promise<InventoryItem[]> {
+    const response = await api.get<ApiResponse<InventoryItem[]>>('/inventory/out-of-stock');
+    return response.data.data;
+  },
+
+  async getExpiringSoon(days: number = 30): Promise<InventoryItem[]> {
+    const response = await api.get<ApiResponse<InventoryItem[]>>('/inventory/expiring-soon', {
+      params: { days },
+    });
+    return response.data.data;
+  },
+
+  async getExpired(): Promise<InventoryItem[]> {
+    const response = await api.get<ApiResponse<InventoryItem[]>>('/inventory/expired');
+    return response.data.data;
+  },
+
+  async count(): Promise<number> {
+    const response = await api.get<ApiResponse<number>>('/inventory/count');
+    return response.data.data;
+  },
+
+  async countLowStock(): Promise<number> {
+    const response = await api.get<ApiResponse<number>>('/inventory/low-stock/count');
+    return response.data.data;
+  },
 };

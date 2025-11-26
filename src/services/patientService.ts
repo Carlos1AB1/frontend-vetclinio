@@ -69,4 +69,16 @@ export const patientService = {
     });
     return response.data.data;
   },
+
+  // ========== NUEVOS ENDPOINTS ==========
+
+  async getBySpecies(species: string): Promise<Patient[]> {
+    const response = await api.get<ApiResponse<Patient[]>>(`/patients/species/${species}`);
+    return response.data.data;
+  },
+
+  async count(): Promise<number> {
+    const response = await api.get<ApiResponse<number>>('/patients/count');
+    return response.data.data;
+  },
 };

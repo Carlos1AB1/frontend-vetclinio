@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Clock, User, FileText, AlertCircle, PawPrint, Edit, Trash2 } from 'lucide-react';
+import { Calendar, Clock, User, FileText, AlertCircle, PawPrint, Edit, Trash2, XCircle } from 'lucide-react';
 import type { Appointment } from '@/types/appointment';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -20,6 +20,7 @@ interface AppointmentDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onCancel?: () => void;
 }
 
 export function AppointmentDetailsDialog({
@@ -28,6 +29,7 @@ export function AppointmentDetailsDialog({
   onOpenChange,
   onEdit,
   onDelete,
+  onCancel,
 }: AppointmentDetailsDialogProps) {
   const formatDateTime = (dateString: string) => {
     return format(new Date(dateString), "dd 'de' MMMM yyyy 'a las' HH:mm", { locale: es });
@@ -163,12 +165,18 @@ export function AppointmentDetailsDialog({
           </div>
         </div>
 
-        {(onEdit || onDelete) && (
+        {(onEdit || onDelete || onCancel) && (
           <DialogFooter className="mt-6">
             {onEdit && (
               <Button onClick={onEdit} variant="outline">
                 <Edit className="h-4 w-4 mr-2" />
                 Editar
+              </Button>
+            )}
+            {onCancel && appointment.status !== 'COMPLETED' && appointment.status !== 'CANCELLED' && (
+              <Button onClick={onCancel} variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50">
+                <XCircle className="h-4 w-4 mr-2" />
+                Cancelar Cita
               </Button>
             )}
             {onDelete && (

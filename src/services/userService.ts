@@ -126,4 +126,15 @@ export const userService = {
     const response = await api.patch<ApiResponse<BackendUser>>(`/users/${userId}/toggle-active`);
     return mapBackendUserToFrontend(response.data.data);
   },
+
+  // ========== NUEVOS ENDPOINTS ==========
+
+  async getByUsername(username: string): Promise<User> {
+    const response = await api.get<ApiResponse<BackendUser>>(`/users/username/${username}`);
+    return mapBackendUserToFrontend(response.data.data);
+  },
+
+  async unlockUser(id: string): Promise<void> {
+    await api.post(`/users/${id}/unlock`);
+  },
 };
