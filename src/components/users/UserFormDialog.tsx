@@ -15,12 +15,13 @@ interface UserFormDialogProps {
 }
 
 export function UserFormDialog({ open, onOpenChange, onSubmit, initialData }: UserFormDialogProps) {
-  const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<Omit<User, 'id'>>({
+  const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<Omit<User, 'id'> & { password?: string }>({
     defaultValues: {
       username: '',
       email: '',
       fullName: '',
       role: 'receptionist',
+      password: '',
     },
   });
 
@@ -35,6 +36,7 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData }: Us
           email: initialData.email,
           fullName: initialData.fullName,
           role: initialData.role,
+          password: '', // No pre-fill password when editing
         });
       } else {
         reset({
@@ -42,6 +44,7 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData }: Us
           email: '',
           fullName: '',
           role: 'receptionist',
+          password: '',
         });
       }
     }
@@ -94,6 +97,29 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData }: Us
             />
             {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
           </div>
+
+          {!initialData && (
+            <div>
+              <Label htmlFor="password">Contraseña *</Label>
+              <Input
+                id="password"
+                type="password"
+                {...register('password', { 
+                  required: initialData ? false : 'La contraseña es requerida',
+                  minLength: {
+                    value: 6,
+                    message: 'La contraseña debe tener al menos 6 caracteres'
+                  }
+                })}
+                placeholder="Mínimo 6 caracteres"
+                autoComplete="new-password"
+              />
+              {errors.password && <p className="text-sm text-destructive mt-1">{errors.password.message}</p>}
+              <p className="text-xs text-muted-foreground mt-1">
+                El usuario usará esta contraseña para iniciar sesión
+              </p>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="role">Rol *</Label>

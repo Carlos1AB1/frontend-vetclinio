@@ -51,8 +51,18 @@ export default function Users() {
     return matchesSearch && matchesRole;
   });
 
-  const handleAddUser = async (data: Omit<User, 'id'>) => {
+  const handleAddUser = async (data: Omit<User, 'id'> & { password?: string }) => {
     try {
+      // Validate password is provided
+      if (!data.password) {
+        toast({
+          title: 'Error',
+          description: 'La contraseña es requerida',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       // Split fullName into firstName and lastName
       const nameParts = data.fullName.trim().split(' ');
       const firstName = nameParts[0] || '';
@@ -70,7 +80,7 @@ export default function Users() {
       await userService.create({
         username: data.username,
         email: data.email,
-        password: 'changeme123', // Default password
+        password: data.password, // Use the password from the form
         firstName,
         lastName,
         roles: [backendRole],
@@ -78,7 +88,7 @@ export default function Users() {
       });
       toast({
         title: 'Usuario creado',
-        description: 'El usuario se ha creado correctamente',
+        description: 'El usuario se ha creado correctamente. Puede iniciar sesión con sus credenciales.',
       });
       setIsFormOpen(false);
       loadUsers();
