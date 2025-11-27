@@ -1,100 +1,94 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PawPrint } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { PawPrint } from 'lucide-react';
 
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
 
-    const success = await login(username, password);
-    
-    if (success) {
-      toast.success('Inicio de sesión exitoso');
-      navigate('/dashboard');
-    } else {
-      toast.error('Usuario o contraseña incorrectos');
+    if (!username || !password) {
+      toast.error('Por favor completa todos los campos');
+      return;
     }
-    
-    setIsLoading(false);
+
+    try {
+      setLoading(true);
+      const success = await login(username, password);
+
+      if (success) {
+        const userData = JSON.parse(localStorage.getItem('vetclinic_user') || '{}');
+        const roles = userData.roles || [];
+
+        if (roles.includes('OWNER') || roles.includes('ROLE_OWNER')) {
+          navigate('/owner/appointments');
+        } else if (roles.includes('ADMIN') || roles.includes('VETERINARIAN') || roles.includes('RECEPTIONIST') ||
+            roles.includes('ROLE_ADMIN') || roles.includes('ROLE_VETERINARIAN') || roles.includes('ROLE_RECEPTIONIST')) {
+          navigate('/dashboard');
+        } else {
+          navigate('/');
+        }
+      }
+    } catch (error) {
+      console.error('Error al iniciar sesión:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary">
-            <PawPrint className="h-10 w-10 text-primary-foreground" />
-          </div>
-          <div>
-            <CardTitle className="text-2xl font-bold">VetClinic</CardTitle>
-            <CardDescription>Sistema de Gestión Veterinaria</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Usuario</Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="Ingresa tu usuario"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1 flex flex-col items-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary mb-2">
+              <PawPrint className="h-6 w-6 text-primary-foreground" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Ingresa tu contraseña"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-            </Button>
-          </form>
-          
-          <div className="mt-4 text-center text-sm">
-            <Link to="/forgot-password" className="text-primary hover:underline">
-              ¿Olvidaste tu contraseña?
-            </Link>
-          </div>
-          
-          <div className="mt-4 text-center text-sm">
-            <span className="text-muted-foreground">¿No tienes cuenta? </span>
-            <Link to="/register" className="text-primary hover:underline">
-              Regístrate
-            </Link>
-          </div>
-          
-          <div className="mt-6 rounded-lg bg-muted p-4">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Usuarios de prueba:</p>
-            <div className="space-y-1 text-xs text-muted-foreground">
-              <p>Admin: <span className="font-mono">admin / admin123</span></p>
-              <p>Veterinario: <span className="font-mono">vet1 / vet123</span></p>
-              <p>Recepcionista: <span className="font-mono">recep1 / recep123</span></p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+            <CardTitle className="text-2xl font-bold">Iniciar Sesión</CardTitle>
+            <CardDescription>Ingresa tus credenciales para acceder al sistema</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Usuario</Label>
+                <Input
+                    id="username"
+                    type="text"
+                    placeholder="Ingresa tu usuario"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    disabled={loading}
+                    required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Contraseña</Label>
+                <Input
+                    id="password"
+                    type="password"
+                    placeholder="Ingresa tu contraseña"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                    required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
   );
 }

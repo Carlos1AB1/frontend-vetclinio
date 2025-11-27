@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { authService } from '../services/authService';
 import { useToast } from '../hooks/use-toast';
 
-export type UserRole = 'admin' | 'veterinarian' | 'receptionist';
+export type UserRole = 'admin' | 'veterinarian' | 'receptionist' | 'owner';
 
 export interface User {
   id: string;
@@ -29,18 +29,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is stored in localStorage and validate token
     const initAuth = async () => {
       const storedUser = localStorage.getItem('vetclinic_user');
       const token = authService.getToken();
-      
+
       if (storedUser && token) {
         try {
-          // Validate token by fetching current user
           const currentUser = await authService.getCurrentUser();
           setUser(currentUser);
         } catch (error) {
-          // Token invalid or expired
           console.error('Token validation failed:', error);
           localStorage.removeItem('vetclinic_user');
           localStorage.removeItem('vetclinic_token');
@@ -56,17 +53,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
       const response = await authService.login({ username, password });
-      
+
       if (response.success && response.data) {
-        // Store tokens
         authService.setTokens(response.data.token, response.data.refreshToken);
-        
-        // Map role from backend (ROLE_ADMIN -> admin)
-        const primaryRole = response.data.roles[0]?.replace('ROLE_', '').toLowerCase() as UserRole;
-        
-        // Create user object
+
+        const roles = response.data.roles || [];
+        let primaryRole: UserRole = 'receptionist';
+
+        if (roles.some((r: string) => r === 'OWNER' || r === 'ROLE_OWNER')) {
+          primaryRole = 'owner';
+        } else if (roles.some((r: string) => r === 'ADMIN' || r === 'ROLE_ADMIN')) {
+          primaryRole = 'admin';
+        } else if (roles.some((r: string) => r === 'VETERINARIAN' || r === 'ROLE_VETERINARIAN')) {
+          primaryRole = 'veterinarian';
+        } else if (roles.some((r: string) => r === 'RECEPTIONIST' || r === 'ROLE_RECEPTIONIST')) {
+          primaryRole = 'receptionist';
+        }
+
         const userData: User = {
-          id: response.data.username, // Backend doesn't return ID in login, using username
+          id: response.data.username,
           username: response.data.username,
           email: response.data.email,
           fullName: response.data.fullName,
@@ -74,18 +79,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           roles: response.data.roles,
           permissions: response.data.permissions,
         };
-        
+
         setUser(userData);
         localStorage.setItem('vetclinic_user', JSON.stringify(userData));
-        
+
         toast({
           title: 'Login successful',
           description: `Welcome back, ${response.data.fullName}!`,
         });
-        
+
         return true;
       }
-      
+
       toast({
         title: 'Login failed',
         description: response.message || 'Invalid credentials',
@@ -114,9 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
-      {children}
-    </AuthContext.Provider>
+      <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+        {children}
+      </AuthContext.Provider>
   );
 }
 
