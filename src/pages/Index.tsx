@@ -410,9 +410,7 @@ const Navbar = ({ scrolled, navigate }: { scrolled: boolean, navigate: any }) =>
     >
         <div className="container mx-auto px-6 flex items-center justify-between">
             <div className="flex items-center gap-2 group cursor-pointer">
-                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 shadow-lg shadow-indigo-500/25 group-hover:rotate-12 transition-transform duration-300">
-                    <PawPrint className="h-6 w-6 text-white" />
-                </div>
+                <img src="/logo.png" alt="VetClinic Logo" className="h-10 w-10 group-hover:rotate-12 transition-transform duration-300" />
                 <h1 className="text-xl font-bold tracking-tight">VetClinic<span className="text-indigo-600">Pro</span></h1>
             </div>
             

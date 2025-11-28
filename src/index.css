@@ -117,30 +117,30 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
-  /* Sobrescribir bg-primary para usar el degradado azul */
+  /* Sobrescribir bg-primary para usar el degradado indigo-violeta-fucsia */
   .bg-primary {
-    background: linear-gradient(to bottom right, rgb(37, 99, 235), rgb(29, 78, 216)) !important;
+    background: linear-gradient(to right, rgb(79, 70, 229), rgb(139, 92, 246), rgb(217, 70, 239)) !important;
   }
   
   /* Para dark mode */
   .dark .bg-primary {
-    background: linear-gradient(to bottom right, rgb(29, 78, 216), rgb(30, 64, 175)) !important;
+    background: linear-gradient(to right, rgb(99, 102, 241), rgb(139, 92, 246), rgb(232, 121, 249)) !important;
   }
   
   /* Hover states */
   .hover\:bg-primary\/90:hover {
-    background: linear-gradient(to bottom right, rgb(37, 99, 235), rgb(29, 78, 216)) !important;
+    background: linear-gradient(to right, rgb(67, 56, 202), rgb(124, 58, 237), rgb(192, 38, 211)) !important;
     opacity: 0.9;
   }
   
   .dark .hover\:bg-primary\/90:hover {
-    background: linear-gradient(to bottom right, rgb(29, 78, 216), rgb(30, 64, 175)) !important;
+    background: linear-gradient(to right, rgb(79, 70, 229), rgb(124, 58, 237), rgb(217, 70, 239)) !important;
     opacity: 0.9;
   }
   
-  /* Texto con degradado azul para text-primary */
+  /* Texto con degradado indigo-violeta-fucsia para text-primary */
   .text-primary {
-    background: linear-gradient(to bottom right, rgb(37, 99, 235), rgb(29, 78, 216));
+    background: linear-gradient(to right, rgb(79, 70, 229), rgb(139, 92, 246), rgb(217, 70, 239));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -149,10 +149,19 @@ All colors MUST be HSL.
   
   /* Para dark mode - degradado más claro */
   .dark .text-primary {
-    background: linear-gradient(to bottom right, rgb(59, 130, 246), rgb(37, 99, 235));
+    background: linear-gradient(to right, rgb(99, 102, 241), rgb(139, 92, 246), rgb(232, 121, 249));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
     -webkit-text-fill-color: transparent;
+  }
+
+  /* Hover del sidebar con degradado más claro */
+  .sidebar-item-hover:hover {
+    background: linear-gradient(to right, rgba(79, 70, 229, 0.1), rgba(139, 92, 246, 0.1), rgba(217, 70, 239, 0.1)) !important;
+  }
+
+  .dark .sidebar-item-hover:hover {
+    background: linear-gradient(to right, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15), rgba(232, 121, 249, 0.15)) !important;
   }
 }

@@ -1,7 +1,8 @@
 import { Home, Users, Calendar, FileText, Package, BarChart3, Settings, LogOut, PawPrint, UserCircle, Pill, Briefcase, ClipboardCheck, CalendarDays } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, type User } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { useState, useEffect } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['admin', 'veterinarian', 'receptionist'] },
@@ -19,19 +20,49 @@ const navigation = [
   { name: 'Configuración', href: '/settings', icon: Settings, roles: ['admin'] },
 ];
 
+// Función para cargar usuario del localStorage de forma síncrona
+const getStoredUser = (): User | null => {
+  try {
+    const stored = localStorage.getItem('vetclinic_user');
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Error loading stored user:', error);
+  }
+  return null;
+};
+
 export function AppSidebar() {
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
+  // Cargar usuario del localStorage de forma síncrona en el estado inicial
+  const [storedUser] = useState<User | null>(() => getStoredUser());
+
+  // Actualizar storedUser cuando el user del contexto cambie
+  useEffect(() => {
+    if (user) {
+      // El usuario del contexto tiene prioridad, no necesitamos actualizar storedUser
+    }
+  }, [user]);
+
+  // Usar el usuario del contexto si está disponible, sino usar el del localStorage
+  const currentUser = user || storedUser;
 
   const filteredNavigation = navigation.filter(item => 
-    user && item.roles.includes(user.role)
+    currentUser && item.roles.includes(currentUser.role)
   );
+
+  // Si no hay items filtrados pero hay un usuario, mostrar items básicos como fallback
+  const displayNavigation = filteredNavigation.length > 0 
+    ? filteredNavigation 
+    : (currentUser ? navigation.filter(item => item.roles.includes('admin') || item.roles.includes('receptionist')) : []);
 
   return (
     <div className="flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar">
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-          <PawPrint className="h-6 w-6 text-primary-foreground" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden">
+          <img src="/logo.png" alt="VetClinic Logo" className="h-10 w-10 object-contain" />
         </div>
         <div>
           <h1 className="text-lg font-bold text-sidebar-foreground">VetClinic</h1>
@@ -40,17 +71,17 @@ export function AppSidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-        {filteredNavigation.map((item) => {
+        {displayNavigation.map((item) => {
           const isActive = location.pathname === item.href;
           return (
             <Link
               key={item.name}
               to={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
                 isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  ? 'bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-white shadow-md'
+                  : 'text-sidebar-foreground sidebar-item-hover'
               )}
             >
               <item.icon className="h-5 w-5" />
@@ -62,9 +93,9 @@ export function AppSidebar() {
 
       <div className="border-t border-sidebar-border p-4">
         <div className="mb-3 rounded-lg bg-sidebar-accent p-3">
-          <p className="text-sm font-medium text-sidebar-foreground">{user?.fullName}</p>
-          <p className="text-xs text-muted-foreground">{user?.email}</p>
-          <p className="mt-1 text-xs font-medium text-primary capitalize">{user?.role}</p>
+          <p className="text-sm font-medium text-sidebar-foreground">{currentUser?.fullName || 'Cargando...'}</p>
+          <p className="text-xs text-muted-foreground">{currentUser?.email || ''}</p>
+          <p className="mt-1 text-xs font-medium text-primary capitalize">{currentUser?.role || ''}</p>
         </div>
         <button
           onClick={logout}

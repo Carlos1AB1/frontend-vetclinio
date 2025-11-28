@@ -63,9 +63,7 @@ export function OwnerLayout({ children }: { children: React.ReactNode }) {
                     {/* Header */}
                     <div className="flex h-20 items-center justify-between border-b border-slate-200/50 dark:border-slate-800/50 px-6">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg shadow-blue-500/20">
-                                <PawPrint className="h-7 w-7 text-white" />
-                            </div>
+                            <img src="/logo.png" alt="VetClinic Logo" className="h-12 w-12" />
                             <div>
                                 <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
                                     Portal Cliente

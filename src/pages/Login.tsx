@@ -106,9 +106,7 @@ export default function Login() {
                 {/* Header */}
                 <motion.div variants={itemVariants} className="text-center lg:text-left space-y-2">
                     <div className="flex items-center justify-center lg:justify-start gap-2 mb-6">
-                        <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                            <PawPrint className="h-6 w-6 text-white" />
-                        </div>
+                        <img src="/logo.png" alt="VetClinic Logo" className="h-10 w-10" />
                         <span className="font-bold text-xl tracking-tight">VetClinic<span className="text-indigo-600">Pro</span></span>
                     </div>
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Bienvenido de nuevo</h1>
@@ -142,7 +140,7 @@ export default function Login() {
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="password" className={focusedField === 'password' ? 'text-indigo-600' : ''}>Contraseña</Label>
-                            <a href="#" className="text-xs text-indigo-600 hover:text-indigo-500 font-medium">¿Olvidaste tu contraseña?</a>
+                        
                         </div>
                         <div className="relative group">
                             <div className="absolute left-3 top-2.5 text-muted-foreground group-hover:text-indigo-600 transition-colors">

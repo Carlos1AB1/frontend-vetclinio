@@ -65,8 +65,8 @@ export default function ForgotPassword() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary">
-            <PawPrint className="h-10 w-10 text-primary-foreground" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center">
+            <img src="/logo.png" alt="VetClinic Logo" className="h-16 w-16" />
           </div>
           <div>
             <CardTitle className="text-2xl font-bold">Recuperar Contraseña</CardTitle>
