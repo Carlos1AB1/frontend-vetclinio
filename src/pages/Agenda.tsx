@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Calendar, Clock, User, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { 
+  Calendar as CalendarIcon, Clock, User, ChevronLeft, ChevronRight, 
+  Filter, MoreHorizontal, MapPin, Stethoscope 
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -11,20 +14,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { agendaService } from '@/services/agendaService';
 import { userService } from '@/services/userService';
+import { appointmentService } from '@/services/appointmentService';
 import type { Appointment } from '@/types/appointment';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addDays, addWeeks, addMonths, subDays, subWeeks, subMonths } from 'date-fns';
+import { AppointmentDetailsDialog } from '@/components/appointments/AppointmentDetailsDialog';
+import { 
+  format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, 
+  eachDayOfInterval, isSameDay, addDays, addWeeks, addMonths, 
+  subDays, subWeeks, subMonths, isToday 
+} from 'date-fns';
 import { es } from 'date-fns/locale';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Configuración de colores para citas en el calendario
+const statusColors: Record<string, string> = {
+  SCHEDULED: 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200',
+  CONFIRMED: 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200',
+  IN_PROGRESS: 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200',
+  COMPLETED: 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200',
+  CANCELLED: 'bg-rose-50 text-rose-700 border-rose-100 hover:bg-rose-100 opacity-60',
+};
 
 export default function Agenda() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [veterinarians, setVeterinarians] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedVeterinarian, setSelectedVeterinarian] = useState<string>('all');
-  const [viewType, setViewType] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('DAILY');
+  const [viewType, setViewType] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('WEEKLY');
   const [loading, setLoading] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -43,7 +70,7 @@ export default function Agenda() {
       );
       setVeterinarians(vets);
     } catch (error) {
-      console.error('Error al cargar veterinarios:', error);
+      console.error('Error al cargar veterinarios');
     }
   };
 
@@ -54,28 +81,17 @@ export default function Agenda() {
       const vetId = selectedVeterinarian === 'all' ? undefined : selectedVeterinarian;
       
       let response: Appointment[];
-      switch (viewType) {
-        case 'DAILY':
-          response = await agendaService.getDailyView(dateStr, vetId);
-          break;
-        case 'WEEKLY':
-          response = await agendaService.getWeeklyView(dateStr, vetId);
-          break;
-        case 'MONTHLY':
+      // Optimizamos la carga para traer un rango adecuado según la vista
+      if (viewType === 'MONTHLY') {
           response = await agendaService.getMonthlyView(dateStr, vetId);
-          break;
-        default:
-          response = await agendaService.getAgendaView('DAILY', dateStr, vetId);
+      } else if (viewType === 'WEEKLY') {
+          response = await agendaService.getWeeklyView(dateStr, vetId);
+      } else {
+          response = await agendaService.getDailyView(dateStr, vetId);
       }
-      
       setAppointments(response || []);
     } catch (error) {
-      console.error('Error al cargar agenda:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo cargar la agenda',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error de sincronización', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -91,252 +107,307 @@ export default function Agenda() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      SCHEDULED: { label: 'Programada', variant: 'secondary' as const },
-      CONFIRMED: { label: 'Confirmada', variant: 'default' as const },
-      IN_PROGRESS: { label: 'En Curso', variant: 'default' as const },
-      COMPLETED: { label: 'Completada', variant: 'outline' as const },
-      CANCELLED: { label: 'Cancelada', variant: 'destructive' as const },
-    };
-    const config = variants[status as keyof typeof variants] || variants.SCHEDULED;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+  const handleAppointmentClick = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setIsDetailsOpen(true);
   };
 
-  const renderDailyView = () => {
+  const handleCancel = async (id: number) => {
+    try {
+      await appointmentService.cancel(id);
+      toast({ title: 'Éxito', description: 'Cita cancelada correctamente' });
+      loadAgenda();
+      setIsDetailsOpen(false);
+    } catch (error) {
+      toast({ title: 'Error', description: 'No se pudo cancelar la cita', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await appointmentService.delete(id);
+      toast({ title: 'Éxito', description: 'Cita eliminada correctamente' });
+      loadAgenda();
+      setIsDetailsOpen(false);
+    } catch (error) {
+      toast({ title: 'Error', description: 'No se pudo eliminar la cita', variant: 'destructive' });
+    }
+  };
+
+  // --- COMPONENTES DE VISTA ---
+
+  const DailyView = () => {
     const dayAppointments = appointments.filter(apt => 
       isSameDay(new Date(apt.scheduledDate), selectedDate)
-    );
+    ).sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
 
     return (
-      <div className="space-y-4">
-        <div className="text-center mb-4">
-          <h2 className="text-2xl font-bold">
-            {format(selectedDate, "EEEE, d 'de' MMMM yyyy", { locale: es })}
-          </h2>
-        </div>
+      <div className="space-y-4 max-w-3xl mx-auto">
         {dayAppointments.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No hay citas programadas para este día
-          </div>
+           <EmptyState />
         ) : (
-          <div className="space-y-3">
-            {dayAppointments
-              .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
-              .map((apt) => (
-                <Card key={apt.id} className="hover:bg-accent/50 transition-colors">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-semibold">
-                            {format(new Date(apt.scheduledDate), 'HH:mm', { locale: es })}
-                          </span>
-                          {getStatusBadge(apt.status)}
-                        </div>
-                        <h3 className="font-semibold text-lg mb-1">{apt.patientName || 'Sin paciente'}</h3>
-                        <p className="text-sm text-muted-foreground">{apt.reason}</p>
-                        {apt.veterinarianName && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            <User className="inline h-3 w-3 mr-1" />
-                            {apt.veterinarianName}
-                          </p>
-                        )}
-                      </div>
+          <div className="relative border-l-2 border-muted ml-4 pl-8 py-4 space-y-8">
+            {dayAppointments.map((apt) => (
+                <motion.div 
+                    key={apt.id} 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="relative"
+                >
+                    {/* Time Dot */}
+                    <div className="absolute -left-[41px] top-0 bg-background border-2 border-primary w-5 h-5 rounded-full flex items-center justify-center z-10">
+                        <div className="w-2 h-2 bg-primary rounded-full" />
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    
+                    <Card 
+                        className="hover:shadow-md transition-all cursor-pointer border-l-4 hover:scale-[1.02]" 
+                        style={{ borderLeftColor: 'var(--primary)' }}
+                        onClick={() => handleAppointmentClick(apt)}
+                    >
+                        <CardContent className="p-4">
+                            <div className="flex justify-between items-start mb-2">
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="font-mono text-xs">
+                                        {format(new Date(apt.scheduledDate), 'HH:mm')}
+                                    </Badge>
+                                    <Badge variant="secondary" className={statusColors[apt.status]}>
+                                        {apt.status}
+                                    </Badge>
+                                </div>
+                                {apt.veterinarianName && (
+                                    <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
+                                        <Stethoscope className="w-3 h-3" /> Dr. {apt.veterinarianName.split(' ')[0]}
+                                    </div>
+                                )}
+                            </div>
+                            <h3 className="font-bold text-lg mb-1 hover:text-primary transition-colors">{apt.patientName}</h3>
+                            <p className="text-sm text-muted-foreground mb-3">{apt.reason || 'Consulta General'}</p>
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1"><User className="w-3 h-3" /> {apt.ownerName}</span>
+                                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {apt.durationMinutes} min</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            ))}
           </div>
         )}
       </div>
     );
   };
 
-  const renderWeeklyView = () => {
+  const WeeklyView = () => {
     const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
     const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
     return (
-      <div className="space-y-4">
-        <div className="text-center mb-4">
-          <h2 className="text-2xl font-bold">
-            Semana del {format(weekStart, 'd', { locale: es })} al {format(weekEnd, "d 'de' MMMM yyyy", { locale: es })}
-          </h2>
-        </div>
-        <div className="grid grid-cols-7 gap-2">
-          {weekDays.map((day) => {
-            const dayAppointments = appointments.filter(apt =>
-              isSameDay(new Date(apt.scheduledDate), day)
-            );
-            return (
-              <Card key={day.toISOString()} className="min-h-[200px]">
-                <CardHeader className="p-3">
-                  <CardTitle className="text-sm">
-                    {format(day, 'EEE', { locale: es })}
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground">
-                    {format(day, 'd MMM', { locale: es })}
-                  </p>
-                </CardHeader>
-                <CardContent className="p-3 space-y-2">
-                  {dayAppointments.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center">Sin citas</p>
-                  ) : (
-                    dayAppointments
-                      .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
-                      .map((apt) => (
-                        <div
-                          key={apt.id}
-                          className="text-xs p-2 bg-primary/10 rounded border-l-2 border-primary"
-                        >
-                          <div className="font-semibold">
-                            {format(new Date(apt.scheduledDate), 'HH:mm')}
-                          </div>
-                          <div className="truncate">{apt.patientName}</div>
-                        </div>
-                      ))
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+      <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden border">
+        {weekDays.map((day) => {
+          const isCurrentDay = isToday(day);
+          const dayAppointments = appointments.filter(apt => isSameDay(new Date(apt.scheduledDate), day));
+          
+          return (
+            <div key={day.toISOString()} className={`min-h-[300px] bg-background p-2 flex flex-col gap-2 ${isCurrentDay ? 'bg-blue-50/30' : ''}`}>
+              <div className={`text-center p-2 rounded-lg mb-2 ${isCurrentDay ? 'bg-primary text-primary-foreground shadow-sm' : ''}`}>
+                <div className="text-xs uppercase font-medium opacity-70">{format(day, 'EEE', { locale: es })}</div>
+                <div className="text-lg font-bold">{format(day, 'd')}</div>
+              </div>
+              
+              <div className="flex-1 space-y-1.5 overflow-y-auto max-h-[400px] custom-scrollbar">
+                {dayAppointments.map((apt) => (
+                  <AppointmentPill key={apt.id} appointment={apt} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     );
   };
 
-  const renderMonthlyView = () => {
+  const MonthlyView = () => {
     const monthStart = startOfMonth(selectedDate);
     const monthEnd = endOfMonth(selectedDate);
-    const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
-
-    // Agrupar por día
-    const appointmentsByDay = appointments.reduce((acc, apt) => {
-      const day = format(new Date(apt.scheduledDate), 'yyyy-MM-dd');
-      if (!acc[day]) acc[day] = [];
-      acc[day].push(apt);
-      return acc;
-    }, {} as Record<string, Appointment[]>);
+    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    
+    // Relleno para que empiece en lunes correctamente (si el mes empieza en miércoles, rellenar lun y mar)
+    const startDayOfWeek = monthStart.getDay() || 7; // 1 (Lun) - 7 (Dom)
+    const emptyDays = Array(startDayOfWeek - 1).fill(null);
 
     return (
-      <div className="space-y-4">
-        <div className="text-center mb-4">
-          <h2 className="text-2xl font-bold">
-            {format(selectedDate, "MMMM yyyy", { locale: es })}
-          </h2>
+      <div className="bg-background rounded-lg border shadow-sm">
+        <div className="grid grid-cols-7 border-b bg-muted/20">
+            {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(d => (
+                <div key={d} className="p-3 text-center text-sm font-semibold text-muted-foreground">{d}</div>
+            ))}
         </div>
-        <div className="grid grid-cols-7 gap-2">
-          {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day) => (
-            <div key={day} className="text-center font-semibold text-sm p-2">
-              {day}
-            </div>
-          ))}
-          {monthDays.map((day) => {
-            const dayKey = format(day, 'yyyy-MM-dd');
-            const dayAppointments = appointmentsByDay[dayKey] || [];
-            const isToday = isSameDay(day, new Date());
-            return (
-              <Card
-                key={day.toISOString()}
-                className={`min-h-[100px] ${isToday ? 'border-2 border-primary' : ''}`}
-              >
-                <CardContent className="p-2">
-                  <div className={`text-sm font-semibold mb-1 ${isToday ? 'text-primary' : ''}`}>
-                    {format(day, 'd')}
-                  </div>
-                  {dayAppointments.length > 0 && (
-                    <div className="space-y-1">
-                      {dayAppointments.slice(0, 3).map((apt) => (
-                        <div
-                          key={apt.id}
-                          className="text-xs p-1 bg-primary/10 rounded truncate"
-                          title={apt.patientName}
-                        >
-                          {format(new Date(apt.scheduledDate), 'HH:mm')} - {apt.patientName}
+        <div className="grid grid-cols-7 auto-rows-fr">
+            {emptyDays.map((_, i) => <div key={`empty-${i}`} className="border-b border-r bg-muted/5 p-4 min-h-[120px]" />)}
+            {days.map(day => {
+                const dayAppointments = appointments.filter(a => isSameDay(new Date(a.scheduledDate), day));
+                const isCurrentDay = isToday(day);
+                
+                return (
+                    <div key={day.toISOString()} className={`border-b border-r p-2 min-h-[120px] transition-colors hover:bg-muted/5 ${isCurrentDay ? 'bg-blue-50/50' : ''}`}>
+                        <div className={`text-right mb-2 text-sm font-medium ${isCurrentDay ? 'text-primary' : 'text-muted-foreground'}`}>
+                            <span className={isCurrentDay ? 'bg-primary text-primary-foreground w-6 h-6 rounded-full inline-flex items-center justify-center' : ''}>
+                                {format(day, 'd')}
+                            </span>
                         </div>
-                      ))}
-                      {dayAppointments.length > 3 && (
-                        <div className="text-xs text-muted-foreground text-center">
-                          +{dayAppointments.length - 3} más
+                        <div className="space-y-1">
+                            {dayAppointments.slice(0, 3).map(apt => <AppointmentPill key={apt.id} appointment={apt} small />)}
+                            {dayAppointments.length > 3 && (
+                                <div className="text-xs text-center text-muted-foreground font-medium p-1 hover:bg-muted rounded cursor-pointer">
+                                    +{dayAppointments.length - 3} más
+                                </div>
+                            )}
                         </div>
-                      )}
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+                );
+            })}
         </div>
       </div>
     );
   };
 
+  // Subcomponente para las citas en el calendario
+  const AppointmentPill = ({ appointment, small }: { appointment: Appointment, small?: boolean }) => (
+    <TooltipProvider>
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <div 
+                    className={`
+                        text-xs rounded px-2 py-1.5 border cursor-pointer truncate transition-all hover:scale-[1.02] hover:shadow-md
+                        ${statusColors[appointment.status] || 'bg-gray-100'}
+                    `}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleAppointmentClick(appointment);
+                    }}
+                >
+                    <div className="font-semibold flex justify-between">
+                        <span>{format(new Date(appointment.scheduledDate), 'HH:mm')}</span>
+                        {!small && <span className="opacity-75 text-[10px]">{appointment.durationMinutes}m</span>}
+                    </div>
+                    <div className="truncate font-medium">{appointment.patientName}</div>
+                </div>
+            </TooltipTrigger>
+            <TooltipContent>
+                <div className="text-xs">
+                    <p className="font-bold">{appointment.patientName}</p>
+                    <p>Dueño: {appointment.ownerName}</p>
+                    <p>{appointment.reason}</p>
+                    <p className="text-muted-foreground">{format(new Date(appointment.scheduledDate), 'HH:mm')} - Dr. {appointment.veterinarianName}</p>
+                    <p className="text-muted-foreground mt-1 text-[10px]">Click para ver detalles</p>
+                </div>
+            </TooltipContent>
+        </Tooltip>
+    </TooltipProvider>
+  );
+
+  const EmptyState = () => (
+    <div className="text-center py-12 bg-muted/10 rounded-xl border-2 border-dashed">
+        <CalendarIcon className="w-12 h-12 mx-auto text-muted-foreground opacity-20 mb-3" />
+        <h3 className="text-lg font-semibold text-muted-foreground">Sin citas programadas</h3>
+        <p className="text-sm text-muted-foreground/70">No hay actividad registrada para este día.</p>
+    </div>
+  );
+
+  // --- RENDER PRINCIPAL ---
+
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 h-full flex flex-col">
+      {/* HEADER CONTROL BAR */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-background p-1">
         <div>
-          <h1 className="text-3xl font-bold">Agenda</h1>
-          <p className="text-muted-foreground">Visualización de citas médicas</p>
+          <h1 className="text-3xl font-bold tracking-tight">Agenda Médica</h1>
+          <p className="text-muted-foreground">
+            {viewType === 'DAILY' && format(selectedDate, "EEEE, d 'de' MMMM yyyy", { locale: es })}
+            {viewType === 'WEEKLY' && `Semana ${format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'd MMM')} - ${format(endOfWeek(selectedDate, { weekStartsOn: 1 }), 'd MMM', { locale: es })}`}
+            {viewType === 'MONTHLY' && format(selectedDate, "MMMM yyyy", { locale: es })}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Select value={selectedVeterinarian} onValueChange={setSelectedVeterinarian}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Todos los veterinarios" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los veterinarios</SelectItem>
-              {veterinarians.map((vet) => (
-                <SelectItem key={vet.id} value={vet.id}>
-                  {vet.firstName} {vet.lastName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+
+        <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
+            {/* VET FILTER */}
+            <Select value={selectedVeterinarian} onValueChange={setSelectedVeterinarian}>
+                <SelectTrigger className="w-[200px] h-9">
+                    <User className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <SelectValue placeholder="Todos los doctores" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Todos los doctores</SelectItem>
+                    {veterinarians.map((vet) => (
+                        <SelectItem key={vet.id} value={vet.id}>Dr. {vet.firstName} {vet.lastName}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            <div className="h-6 w-px bg-border mx-2 hidden sm:block" />
+
+            {/* NAVIGATION */}
+            <div className="flex items-center border rounded-md bg-background shadow-sm">
+                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigateDate('prev')}>
+                    <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" className="h-9 px-4 font-normal" onClick={() => setSelectedDate(new Date())}>
+                    Hoy
+                </Button>
+                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigateDate('next')}>
+                    <ChevronRight className="h-4 w-4" />
+                </Button>
+            </div>
+
+            {/* VIEW TOGGLE */}
+            <Tabs value={viewType} onValueChange={(v) => setViewType(v as any)} className="w-full sm:w-auto">
+                <TabsList className="h-9 w-full sm:w-auto">
+                    <TabsTrigger value="DAILY" className="text-xs px-3">Día</TabsTrigger>
+                    <TabsTrigger value="WEEKLY" className="text-xs px-3">Semana</TabsTrigger>
+                    <TabsTrigger value="MONTHLY" className="text-xs px-3">Mes</TabsTrigger>
+                </TabsList>
+            </Tabs>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Vista de Agenda</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => navigateDate('prev')}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setSelectedDate(new Date())}>
-                Hoy
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigateDate('next')}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Tabs value={viewType} onValueChange={(value) => setViewType(value as any)}>
-            <TabsList>
-              <TabsTrigger value="DAILY">Diaria</TabsTrigger>
-              <TabsTrigger value="WEEKLY">Semanal</TabsTrigger>
-              <TabsTrigger value="MONTHLY">Mensual</TabsTrigger>
-            </TabsList>
-            <TabsContent value={viewType} className="mt-4">
-              {loading ? (
-                <div className="text-center py-8">Cargando agenda...</div>
-              ) : (
-                <>
-                  {viewType === 'DAILY' && renderDailyView()}
-                  {viewType === 'WEEKLY' && renderWeeklyView()}
-                  {viewType === 'MONTHLY' && renderMonthlyView()}
-                </>
-              )}
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+      {/* CALENDAR CONTENT AREA */}
+      <div className="flex-1 min-h-[500px] relative">
+          {loading && (
+              <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
+          )}
+          
+          <AnimatePresence mode="wait">
+              <motion.div
+                key={viewType + selectedDate.toISOString()}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="h-full"
+              >
+                  {viewType === 'DAILY' && <DailyView />}
+                  {viewType === 'WEEKLY' && <WeeklyView />}
+                  {viewType === 'MONTHLY' && <MonthlyView />}
+              </motion.div>
+          </AnimatePresence>
+      </div>
+
+      {/* DETAILS DIALOG */}
+      {selectedAppointment && (
+        <AppointmentDetailsDialog
+          appointment={selectedAppointment}
+          open={isDetailsOpen}
+          onOpenChange={setIsDetailsOpen}
+          onEdit={() => {
+            setIsDetailsOpen(false);
+            loadAgenda();
+          }}
+          onCancel={() => handleCancel(selectedAppointment.id)}
+          onDelete={() => handleDelete(selectedAppointment.id)}
+        />
+      )}
     </div>
   );
 }
-

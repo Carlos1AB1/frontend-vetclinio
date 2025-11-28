@@ -42,7 +42,7 @@ const formSchema = z.object({
     address: z.string().min(5, 'Dirección debe tener al menos 5 caracteres'),
     city: z.string().min(2, 'Ciudad debe tener al menos 2 caracteres'),
     notes: z.string().optional(),
-    username: z.string().min(4, 'Usuario debe tener al menos 4 caracteres').regex(/^[a-zA-Z0-9_]+$/, 'Solo letras, números y guiones bajos'),
+    username: z.string().min(4, 'Usuario debe tener al menos 4 caracteres').regex(/^\w+$/, 'Solo letras, números y guiones bajos'),
     password: z.string().min(6, 'Contraseña debe tener al menos 6 caracteres'),
 });
 
@@ -50,14 +50,26 @@ type FormData = z.infer<typeof formSchema>;
 
 interface OwnerFormDialogProps {
     owner?: Owner;
-    children: React.ReactNode;
+    children?: React.ReactNode;
     onSuccess?: () => void;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
-export function OwnerFormDialog({ owner, children, onSuccess }: OwnerFormDialogProps) {
-    const [open, setOpen] = useState(false);
+export function OwnerFormDialog({ owner, children, onSuccess, open: controlledOpen, onOpenChange: controlledOnOpenChange }: Readonly<OwnerFormDialogProps>) {
+    const [internalOpen, setInternalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
+
+    // Usar el estado controlado si está disponible, de lo contrario usar el estado interno
+    const open = controlledOpen ?? internalOpen;
+    const setOpen = controlledOnOpenChange ?? setInternalOpen;
+
+    // Determinar el texto del botón
+    const getButtonText = () => {
+        if (loading) return 'Guardando...';
+        return owner ? 'Actualizar' : 'Crear';
+    };
 
     const form = useForm<FormData>({
         resolver: zodResolver(formSchema),
@@ -111,7 +123,7 @@ export function OwnerFormDialog({ owner, children, onSuccess }: OwnerFormDialogP
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>{children}</DialogTrigger>
+            {children && <DialogTrigger asChild>{children}</DialogTrigger>}
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>
@@ -307,7 +319,7 @@ export function OwnerFormDialog({ owner, children, onSuccess }: OwnerFormDialogP
                                 Cancelar
                             </Button>
                             <Button type="submit" disabled={loading}>
-                                {loading ? 'Guardando...' : owner ? 'Actualizar' : 'Crear'} Propietario
+                                {getButtonText()} Propietario
                             </Button>
                         </div>
                     </form>

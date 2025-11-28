@@ -55,7 +55,7 @@ export function ServiceFormDialog({ open, onClose, onSubmit, service }: ServiceF
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name || !formData.category || !formData.price || !formData.durationMinutes) {
       toast.error('Por favor completa los campos obligatorios');
       return;
@@ -84,7 +84,7 @@ export function ServiceFormDialog({ open, onClose, onSubmit, service }: ServiceF
         requiresAppointment: formData.requiresAppointment,
         ...(service && { isActive: formData.isActive }),
       };
-      
+
       await onSubmit(serviceData);
     } catch (error: any) {
       console.error('Error al guardar servicio:', error);

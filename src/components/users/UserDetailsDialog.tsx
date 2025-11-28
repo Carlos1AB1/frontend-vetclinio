@@ -5,6 +5,25 @@ import { Separator } from '@/components/ui/separator';
 import { Edit, Trash2, UserCircle, Mail, Shield } from 'lucide-react';
 import { User, UserRole } from '@/contexts/AuthContext';
 
+// Configuración de traducción de roles
+const roleLabels: Record<string, string> = {
+  ADMIN: 'Administrador',
+  VETERINARIAN: 'Veterinario',
+  RECEPTIONIST: 'Recepcionista',
+  OWNER: 'Propietario',
+  // También soportar versiones con ROLE_ prefix
+  ROLE_ADMIN: 'Administrador',
+  ROLE_VETERINARIAN: 'Veterinario',
+  ROLE_RECEPTIONIST: 'Recepcionista',
+  ROLE_OWNER: 'Propietario',
+};
+
+const getRoleLabel = (role: string | undefined): string => {
+  if (!role) return 'Sin rol';
+  const cleanRole = role.replace('ROLE_', '').toUpperCase();
+  return roleLabels[role] || roleLabels[cleanRole] || roleLabels[`ROLE_${cleanRole}`] || role.replace('ROLE_', '');
+};
+
 interface UserDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -103,7 +122,7 @@ export function UserDetailsDialog({ open, onOpenChange, user, onEdit, onDelete }
               {user.roles && user.roles.length > 0 ? (
                 user.roles.map((role, index) => (
                   <Badge key={index} variant="secondary">
-                    {role.replace('ROLE_', '')}
+                    {getRoleLabel(role)}
                   </Badge>
                 ))
               ) : (

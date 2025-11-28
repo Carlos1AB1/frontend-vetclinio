@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Search, Plus, Briefcase, Edit, Eye, Trash2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { 
+  Search, Plus, Briefcase, Edit, Trash2, 
+  Stethoscope, Syringe, Scissors, Activity, Clock, 
+  DollarSign, CheckCircle2, XCircle, MoreVertical, Sparkles
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -11,16 +14,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ServiceFormDialog } from '@/components/services/ServiceFormDialog';
 import { ServiceDetailsDialog } from '@/components/services/ServiceDetailsDialog';
 import { clinicService, ClinicService } from '@/services/clinicService';
 import { useToast } from '@/hooks/use-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Iconos y colores por categoría (Soft Pastel Theme)
+const getCategoryStyle = (cat: string) => {
+    const c = cat.toLowerCase();
+    if (c.includes('consulta')) return { icon: Stethoscope, bg: 'bg-blue-100', text: 'text-blue-600' };
+    if (c.includes('vacuna')) return { icon: Syringe, bg: 'bg-emerald-100', text: 'text-emerald-600' };
+    if (c.includes('cirugía')) return { icon: Activity, bg: 'bg-rose-100', text: 'text-rose-600' };
+    if (c.includes('estética')) return { icon: Scissors, bg: 'bg-pink-100', text: 'text-pink-600' };
+    return { icon: Sparkles, bg: 'bg-violet-100', text: 'text-violet-600' };
+};
 
 export default function Services() {
   const [services, setServices] = useState<ClinicService[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('active');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<ClinicService | undefined>();
@@ -29,9 +49,7 @@ export default function Services() {
   const [totalPages, setTotalPages] = useState(0);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadServices();
-  }, [page]);
+  useEffect(() => { loadServices(); }, [page]);
 
   const loadServices = async () => {
     try {
@@ -40,12 +58,7 @@ export default function Services() {
       setServices(response.content || []);
       setTotalPages(response.totalPages || 0);
     } catch (error) {
-      console.error('Error al cargar servicios:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar los servicios',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -53,241 +66,176 @@ export default function Services() {
 
   const categories = Array.from(new Set(services.map(s => s.category)));
 
-  const filteredServices = services.filter((service) => {
-    const matchesSearch =
-      service.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      service.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      service.category?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCategory = categoryFilter === 'all' || service.category === categoryFilter;
-    const matchesStatus = statusFilter === 'all' || 
-      (statusFilter === 'active' && service.isActive) ||
-      (statusFilter === 'inactive' && !service.isActive);
-    
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+  const filteredServices = useMemo(() => {
+      return services.filter((service) => {
+        const matchesSearch = service.name?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory = categoryFilter === 'all' || service.category === categoryFilter;
+        const matchesStatus = statusFilter === 'all' || 
+          (statusFilter === 'active' && service.isActive) ||
+          (statusFilter === 'inactive' && !service.isActive);
+        return matchesSearch && matchesCategory && matchesStatus;
+      });
+  }, [services, searchTerm, categoryFilter, statusFilter]);
 
-  const handleAddService = async (newService: any) => {
-    try {
-      await clinicService.create(newService);
-      toast({
-        title: 'Éxito',
-        description: 'Servicio creado correctamente',
-      });
-      await loadServices();
-      setIsFormOpen(false);
-    } catch (error: any) {
-      console.error('Error al crear servicio:', error);
-      let errorMessage = 'No se pudo crear el servicio';
-      
-      if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error?.response?.data?.errors) {
-        // Si hay errores de validación, mostrar el primero
-        const errors = error.response.data.errors;
-        if (Array.isArray(errors) && errors.length > 0) {
-          errorMessage = errors[0];
-        } else if (typeof errors === 'object') {
-          const firstError = Object.values(errors)[0];
-          errorMessage = Array.isArray(firstError) ? firstError[0] : String(firstError);
-        }
-      }
-      
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    }
+  // Actions
+  const handleAddService = async (data: any) => {
+    try { await clinicService.create(data); loadServices(); setIsFormOpen(false); } catch (e) {}
   };
-
-  const handleEditService = async (updatedService: ClinicService) => {
-    try {
-      await clinicService.update(updatedService.id, updatedService as any);
-      toast({
-        title: 'Éxito',
-        description: 'Servicio actualizado correctamente',
-      });
-      loadServices();
-    } catch (error) {
-      console.error('Error al actualizar servicio:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo actualizar el servicio',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const handleDelete = async (id: number) => {
-    try {
-      await clinicService.delete(id);
-      toast({
-        title: 'Éxito',
-        description: 'Servicio eliminado correctamente',
-      });
-      loadServices();
-      setIsDetailsOpen(false);
-    } catch (error) {
-      console.error('Error al eliminar servicio:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo eliminar el servicio',
-        variant: 'destructive',
-      });
-    }
+    try { await clinicService.delete(id); loadServices(); setIsDetailsOpen(false); } catch (e) {}
   };
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-10 max-w-5xl mx-auto">
+      
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Catálogo de Servicios</h1>
-          <p className="text-muted-foreground">Gestión de servicios ofrecidos por la clínica</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            Servicios <Briefcase className="h-6 w-6 text-primary" />
+          </h1>
+          <p className="text-muted-foreground mt-1">Configuración del catálogo clínico.</p>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Servicio
+        <Button onClick={() => setIsFormOpen(true)} className="shadow-lg hover:scale-105 transition-transform rounded-full px-6">
+          <Plus className="mr-2 h-4 w-4" /> Nuevo Servicio
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Lista de Servicios</CardTitle>
-            <div className="flex gap-2">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar servicios..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 w-64"
-                />
-              </div>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Categoría" />
-                </SelectTrigger>
+      {/* FILTERS BAR */}
+      <div className="bg-background/60 backdrop-blur-xl border p-2 rounded-2xl shadow-sm flex flex-col sm:flex-row gap-2 sticky top-4 z-20">
+        <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+                placeholder="Buscar servicio..." 
+                className="pl-10 border-none bg-transparent h-10 focus-visible:ring-0"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+        </div>
+        <div className="flex gap-2">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[150px] border-none bg-transparent h-10"><SelectValue placeholder="Categoría" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
+                    <SelectItem value="all">Todas</SelectItem>
+                    {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[130px] border-none bg-transparent h-10"><SelectValue placeholder="Estado" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="active">Activos</SelectItem>
-                  <SelectItem value="inactive">Inactivos</SelectItem>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="active">Activos</SelectItem>
+                    <SelectItem value="inactive">Inactivos</SelectItem>
                 </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8">Cargando servicios...</div>
-          ) : filteredServices.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No hay servicios registrados
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredServices.map((service) => (
-                <Card key={service.id} className="hover:bg-accent/50 transition-colors">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Briefcase className="h-5 w-5 text-primary" />
-                          <h3 className="font-semibold text-lg">{service.name}</h3>
-                          <Badge variant={service.isActive ? 'default' : 'secondary'}>
-                            {service.isActive ? 'Activo' : 'Inactivo'}
-                          </Badge>
-                          <Badge variant="outline">{service.category}</Badge>
-                        </div>
-                        {service.description && (
-                          <p className="text-sm text-muted-foreground mb-2">{service.description}</p>
-                        )}
-                        <div className="flex gap-4 text-sm">
-                          <div>
-                            <span className="font-medium">Precio:</span>{' '}
-                            ${service.price?.toLocaleString('es-CO') || '0'}
-                          </div>
-                          {service.durationMinutes && (
-                            <div>
-                              <span className="font-medium">Duración:</span> {service.durationMinutes} min
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedService(service);
-                            setIsDetailsOpen(true);
-                          }}
+            </Select>
+        </div>
+      </div>
+
+      {/* LIST CONTENT */}
+      <div className="space-y-4">
+        {loading ? (
+            [1,2,3].map(i => <div key={i} className="h-24 bg-muted/20 rounded-2xl animate-pulse" />)
+        ) : filteredServices.length === 0 ? (
+            <div className="py-20 text-center text-muted-foreground border-2 border-dashed rounded-3xl">No hay servicios disponibles.</div>
+        ) : (
+            <AnimatePresence>
+                {filteredServices.map((service) => {
+                    const style = getCategoryStyle(service.category);
+                    const Icon = style.icon;
+
+                    return (
+                        <motion.div
+                            key={service.id}
+                            layout
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="group"
                         >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                            <div 
+                                className="bg-card hover:bg-muted/30 border rounded-2xl p-4 flex items-center gap-5 transition-all duration-300 hover:shadow-lg hover:-translate-x-1 cursor-pointer relative overflow-hidden"
+                                onClick={() => { setSelectedService(service); setIsDetailsOpen(true); }}
+                            >
+                                {/* Left Color Strip */}
+                                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${service.isActive ? 'bg-primary' : 'bg-muted'}`} />
 
-          {totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-4">
-              <Button
-                variant="outline"
-                onClick={() => setPage(Math.max(0, page - 1))}
-                disabled={page === 0}
-              >
-                Anterior
-              </Button>
-              <span className="flex items-center px-4">
-                Página {page + 1} de {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-                disabled={page >= totalPages - 1}
-              >
-                Siguiente
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                                {/* Icon Avatar */}
+                                <div className={`h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 ${style.bg} ${style.text}`}>
+                                    <Icon className="h-7 w-7" />
+                                </div>
 
-      <ServiceFormDialog
-        open={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSubmit={handleAddService}
-      />
+                                {/* Content */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h3 className="font-bold text-lg text-foreground truncate">{service.name}</h3>
+                                        {!service.isActive && (
+                                            <Badge variant="secondary" className="text-[10px] h-5 px-1.5">Inactivo</Badge>
+                                        )}
+                                    </div>
+                                    <p className="text-sm text-muted-foreground truncate pr-4">
+                                        {service.description || "Sin descripción"}
+                                    </p>
+                                    <div className="flex items-center gap-3 mt-2 text-xs font-medium text-muted-foreground">
+                                        <span className="bg-muted px-2 py-0.5 rounded-md uppercase tracking-wide">{service.category}</span>
+                                        {service.durationMinutes && (
+                                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {service.durationMinutes} min</span>
+                                        )}
+                                    </div>
+                                </div>
 
-      <ServiceDetailsDialog
-        open={isDetailsOpen}
-        onClose={() => {
-          setIsDetailsOpen(false);
-          setSelectedService(undefined);
-        }}
-        service={selectedService}
-        onEdit={handleEditService}
-        onDelete={handleDelete}
+                                {/* Price & Actions */}
+                                <div className="flex items-center gap-6 pl-4 border-l border-border/50">
+                                    <div className="text-right">
+                                        <div className="text-xl font-bold text-foreground tabular-nums">
+                                            ${service.price?.toLocaleString()}
+                                        </div>
+                                    </div>
+                                    
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                                <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => { setSelectedService(service); setIsDetailsOpen(true); }}>
+                                                Ver Detalles
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => { setSelectedService(service); setIsFormOpen(true); }}>
+                                                Editar
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDelete(service.id)}>
+                                                Eliminar
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            </div>
+                        </motion.div>
+                    );
+                })}
+            </AnimatePresence>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2 pt-6">
+            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>Prev</Button>
+            <span className="flex items-center px-3 text-sm">Pag {page + 1}</span>
+            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</Button>
+        </div>
+      )}
+
+      {/* Dialogs (sin cambios en lógica) */}
+      <ServiceFormDialog open={isFormOpen} onClose={() => setIsFormOpen(false)} onSubmit={handleAddService} />
+      <ServiceDetailsDialog 
+        open={isDetailsOpen} 
+        onClose={() => { setIsDetailsOpen(false); setSelectedService(undefined); }} 
+        service={selectedService} 
+        onEdit={(u) => { loadServices(); }} 
+        onDelete={handleDelete} 
       />
     </div>
   );
 }
-

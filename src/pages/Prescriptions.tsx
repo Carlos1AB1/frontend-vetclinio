@@ -1,9 +1,21 @@
-import { useState, useEffect } from 'react';
-import { Search, Plus, FileText, Download, Eye, Edit, Trash2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { 
+  Search, Plus, FileText, Download, Eye, Edit, Trash2, 
+  Pill, Clock, CalendarRange, User, AlertCircle, FileSpreadsheet, 
+  CheckCircle2, XCircle, MoreVertical
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from "@/components/ui/progress";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -15,8 +27,9 @@ import { PrescriptionFormDialog } from '@/components/prescriptions/PrescriptionF
 import { PrescriptionDetailsDialog } from '@/components/prescriptions/PrescriptionDetailsDialog';
 import { prescriptionService, Prescription } from '@/services/prescriptionService';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, differenceInDays, isPast, isFuture } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Prescriptions() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
@@ -37,296 +50,303 @@ export default function Prescriptions() {
   const loadPrescriptions = async () => {
     try {
       setLoading(true);
-      const response = await prescriptionService.getAll(page, 10);
+      const response = await prescriptionService.getAll(page, 12); // Cargamos 12 para grid 3x4 o 4x3
       setPrescriptions(response.content || []);
       setTotalPages(response.totalPages || 0);
     } catch (error) {
-      console.error('Error al cargar prescripciones:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar las prescripciones',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Error al sincronizar recetas', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredPrescriptions = prescriptions.filter((prescription) => {
-    const matchesSearch =
-      prescription.medicationName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      prescription.patientName?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || prescription.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filteredPrescriptions = useMemo(() => {
+    return prescriptions.filter((prescription) => {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        prescription.medicationName?.toLowerCase().includes(searchLower) ||
+        prescription.patientName?.toLowerCase().includes(searchLower);
+      
+      const matchesStatus = statusFilter === 'all' || 
+        (statusFilter === 'ACTIVE' && prescription.isCurrentlyActive) ||
+        (statusFilter === 'EXPIRED' && prescription.isExpired) ||
+        (prescription.status === statusFilter);
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [prescriptions, searchTerm, statusFilter]);
 
-  const handleAddPrescription = async (newPrescription: any) => {
+  // --- ACTIONS ---
+  const handleExport = async (id: number, format: 'PDF' | 'EXCEL') => {
     try {
-      await prescriptionService.create(newPrescription);
-      toast({
-        title: 'Éxito',
-        description: 'Prescripción creada correctamente',
-      });
-      await loadPrescriptions();
-      setIsFormOpen(false);
-    } catch (error: any) {
-      console.error('Error al crear prescripción:', error);
-      const errorMessage = error?.response?.data?.message || 'No se pudo crear la prescripción';
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleEditPrescription = async (updatedPrescription: Prescription) => {
-    try {
-      await prescriptionService.update(updatedPrescription.id, updatedPrescription as any);
-      toast({
-        title: 'Éxito',
-        description: 'Prescripción actualizada correctamente',
-      });
-      loadPrescriptions();
+        toast({ title: 'Generando documento...', description: 'La descarga comenzará en breve.' });
+        const blob = await prescriptionService.exportPrescription(id, format);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Receta_${id}_${new Date().getTime()}.${format.toLowerCase() === 'excel' ? 'xlsx' : 'pdf'}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast({ title: 'Descarga completa', className: 'bg-green-50 border-green-200' });
     } catch (error) {
-      console.error('Error al actualizar prescripción:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo actualizar la prescripción',
-        variant: 'destructive',
-      });
+        toast({ title: 'Error de exportación', variant: 'destructive' });
     }
   };
 
   const handleDelete = async (id: number) => {
-    try {
-      await prescriptionService.delete(id);
-      toast({
-        title: 'Éxito',
-        description: 'Prescripción eliminada correctamente',
-      });
-      loadPrescriptions();
-      setIsDetailsOpen(false);
-    } catch (error) {
-      console.error('Error al eliminar prescripción:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo eliminar la prescripción',
-        variant: 'destructive',
-      });
-    }
+      try {
+          await prescriptionService.delete(id);
+          toast({ title: 'Eliminado', description: 'La prescripción ha sido eliminada.' });
+          loadPrescriptions();
+          setIsDetailsOpen(false);
+      } catch (error) {
+          toast({ title: 'Error', variant: 'destructive' });
+      }
   };
 
-  const handleExport = async (id: number, format: 'PDF' | 'EXCEL') => {
-    try {
-      const blob = await prescriptionService.exportPrescription(id, format);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `prescripcion_${id}.${format.toLowerCase()}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast({
-        title: 'Éxito',
-        description: `Prescripción exportada en formato ${format}`,
-      });
-    } catch (error) {
-      console.error('Error al exportar prescripción:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo exportar la prescripción',
-        variant: 'destructive',
-      });
-    }
-  };
+  // --- UI HELPERS ---
+  const getProgressInfo = (start?: string, end?: string) => {
+      if (!start || !end) return { value: 0, label: 'Indefinido', color: 'bg-slate-200' };
+      
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      const now = new Date();
+      const totalDays = differenceInDays(endDate, startDate);
+      const daysPassed = differenceInDays(now, startDate);
+      
+      let percentage = 0;
+      if (totalDays > 0) {
+          percentage = Math.min(100, Math.max(0, (daysPassed / totalDays) * 100));
+      } else if (isPast(endDate)) {
+          percentage = 100;
+      }
 
-  const getStatusBadge = (prescription: Prescription) => {
-    if (prescription.isExpired) {
-      return <Badge variant="destructive">Vencida</Badge>;
-    }
-    if (prescription.isCurrentlyActive) {
-      return <Badge variant="default">Activa</Badge>;
-    }
-    if (prescription.status) {
-      const variants = {
-        ACTIVE: { label: 'Activa', variant: 'default' as const },
-        COMPLETED: { label: 'Completada', variant: 'outline' as const },
-        CANCELLED: { label: 'Cancelada', variant: 'destructive' as const },
-      };
-      const config = variants[prescription.status] || variants.ACTIVE;
-      return <Badge variant={config.variant}>{config.label}</Badge>;
-    }
-    return <Badge variant="secondary">Sin estado</Badge>;
+      let color = 'bg-emerald-500'; // Active
+      let label = `${Math.max(0, differenceInDays(endDate, now))} días restantes`;
+
+      if (percentage >= 100) {
+          color = 'bg-slate-400';
+          label = 'Completado';
+      } else if (percentage > 80) {
+          color = 'bg-orange-500';
+          label = 'Finalizando pronto';
+      }
+
+      return { value: percentage, label, color };
   };
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+      
+      {/* --- HEADER --- */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Prescripciones</h1>
-          <p className="text-muted-foreground">Gestión de recetas y prescripciones médicas</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            Farmacia y Recetas <Pill className="h-6 w-6 text-primary" />
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Control de medicación y generación de documentos oficiales.
+          </p>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva Prescripción
-        </Button>
+        <div className="flex gap-2">
+            <PrescriptionFormDialog onSuccess={loadPrescriptions}>
+                <Button className="shadow-lg shadow-primary/20 hover:scale-105 transition-transform">
+                    <Plus className="mr-2 h-4 w-4" /> Nueva Prescripción
+                </Button>
+            </PrescriptionFormDialog>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Lista de Prescripciones</CardTitle>
-            <div className="flex gap-2">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por medicamento o paciente..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 w-64"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="ACTIVE">Activas</SelectItem>
-                  <SelectItem value="COMPLETED">Completadas</SelectItem>
-                  <SelectItem value="CANCELLED">Canceladas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8">Cargando prescripciones...</div>
-          ) : filteredPrescriptions.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No hay prescripciones registradas
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredPrescriptions.map((prescription) => (
-                <Card key={prescription.id} className="hover:bg-accent/50 transition-colors">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FileText className="h-5 w-5 text-primary" />
-                          <h3 className="font-semibold text-lg">{prescription.medicationName}</h3>
-                          {getStatusBadge(prescription)}
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                          <div>
-                            <span className="font-medium">Paciente:</span> {prescription.patientName || 'N/A'}
-                          </div>
-                          <div>
-                            <span className="font-medium">Dosis:</span> {prescription.dosage}
-                          </div>
-                          <div>
-                            <span className="font-medium">Frecuencia:</span> {prescription.frequency}
-                          </div>
-                          <div>
-                            <span className="font-medium">Duración:</span> {prescription.duration}
-                          </div>
-                          {prescription.startDate && (
-                            <div>
-                              <span className="font-medium">Inicio:</span>{' '}
-                              {format(new Date(prescription.startDate), 'dd/MM/yyyy', { locale: es })}
-                            </div>
-                          )}
-                          {prescription.endDate && (
-                            <div>
-                              <span className="font-medium">Fin:</span>{' '}
-                              {format(new Date(prescription.endDate), 'dd/MM/yyyy', { locale: es })}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedPrescription(prescription);
-                            setIsDetailsOpen(true);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleExport(prescription.id, 'PDF')}
-                          title="Exportar PDF"
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleExport(prescription.id, 'EXCEL')}
-                          title="Exportar Excel"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+      {/* --- TOOLBAR --- */}
+      <div className="sticky top-4 z-20 bg-background/80 backdrop-blur-xl border p-2 rounded-2xl shadow-sm flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+                placeholder="Buscar medicamento o paciente..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 border-none bg-transparent shadow-none h-10"
+            />
+        </div>
+        <div className="h-8 w-px bg-border hidden sm:block my-auto" />
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px] border-none bg-transparent shadow-none h-10">
+                <SelectValue placeholder="Estado" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="ACTIVE">🟢 Activas</SelectItem>
+                <SelectItem value="EXPIRED">🔴 Vencidas / Completadas</SelectItem>
+            </SelectContent>
+        </Select>
+      </div>
+
+      {/* --- GRID CONTENT --- */}
+      {loading ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {[1,2,3,4,5,6].map(i => (
+                  <div key={i} className="h-64 bg-muted/20 rounded-2xl animate-pulse border border-muted/30" />
               ))}
-            </div>
-          )}
+          </div>
+      ) : filteredPrescriptions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 border-2 border-dashed border-muted rounded-3xl bg-muted/5 text-center">
+              <div className="bg-background p-4 rounded-full shadow-sm mb-4">
+                  <Pill className="h-8 w-8 text-muted-foreground/50" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">No hay recetas</h3>
+              <p className="text-muted-foreground max-w-sm">
+                  {searchTerm ? "No se encontraron resultados para tu búsqueda." : "Genera la primera receta digital para comenzar."}
+              </p>
+          </div>
+      ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+              <AnimatePresence>
+                  {filteredPrescriptions.map((p) => {
+                      const progress = getProgressInfo(p.startDate, p.endDate);
+                      const isActive = p.isCurrentlyActive;
 
-          {totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-4">
-              <Button
-                variant="outline"
-                onClick={() => setPage(Math.max(0, page - 1))}
-                disabled={page === 0}
-              >
+                      return (
+                        <motion.div
+                            key={p.id}
+                            layout
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                        >
+                            <Card className={`
+                                h-full flex flex-col relative overflow-hidden transition-all duration-300 hover:shadow-xl border-l-4
+                                ${isActive ? 'border-l-emerald-500' : 'border-l-slate-300'}
+                            `}>
+                                {/* Header */}
+                                <div className="p-5 pb-0 flex justify-between items-start">
+                                    <div className="flex gap-3">
+                                        <div className={`
+                                            h-12 w-12 rounded-xl flex items-center justify-center text-xl font-bold shadow-sm
+                                            ${isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}
+                                        `}>
+                                            Rx
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-lg leading-tight line-clamp-1" title={p.medicationName}>
+                                                {p.medicationName}
+                                            </h3>
+                                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                                <User className="h-3 w-3" /> {p.patientName}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 -mt-1 -mr-2">
+                                                <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => { setSelectedPrescription(p); setIsDetailsOpen(true); }}>
+                                                <Eye className="mr-2 h-4 w-4" /> Ver Detalles
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleExport(p.id, 'PDF')}>
+                                                <FileText className="mr-2 h-4 w-4" /> Exportar PDF
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleExport(p.id, 'EXCEL')}>
+                                                <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDelete(p.id)}>
+                                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+
+                                <CardContent className="p-5 pt-4 flex-1 flex flex-col">
+                                    {/* Dosis Info */}
+                                    <div className="grid grid-cols-2 gap-3 mb-4 bg-muted/20 p-3 rounded-lg border border-muted/30">
+                                        <div>
+                                            <p className="text-[10px] uppercase text-muted-foreground font-bold">Dosis</p>
+                                            <p className="text-sm font-semibold truncate" title={p.dosage}>{p.dosage}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] uppercase text-muted-foreground font-bold">Frecuencia</p>
+                                            <p className="text-sm font-semibold truncate" title={p.frequency}>{p.frequency}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-auto space-y-3">
+                                        {/* Progress Bar (Timeline) */}
+                                        <div className="space-y-1.5">
+                                            <div className="flex justify-between text-xs">
+                                                <span className="text-muted-foreground font-medium flex items-center gap-1">
+                                                    <CalendarRange className="h-3 w-3" /> Progreso
+                                                </span>
+                                                <span className={`font-bold ${isActive ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                                    {progress.label}
+                                                </span>
+                                            </div>
+                                            <Progress value={progress.value} className="h-2" indicatorColor={progress.color} />
+                                            <div className="flex justify-between text-[10px] text-muted-foreground/70 font-mono">
+                                                <span>{p.startDate ? format(new Date(p.startDate), 'dd MMM') : '-'}</span>
+                                                <span>{p.endDate ? format(new Date(p.endDate), 'dd MMM') : '-'}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Status Badge */}
+                                        {p.isExpired ? (
+                                            <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded w-fit">
+                                                <CheckCircle2 className="h-3.5 w-3.5" /> Tratamiento Finalizado
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded w-fit animate-pulse">
+                                                <Clock className="h-3.5 w-3.5" /> En curso
+                                            </div>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                      );
+                  })}
+              </AnimatePresence>
+          </div>
+      )}
+
+      {/* Pagination (Si aplica) */}
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2 pt-4">
+            <Button variant="outline" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
                 Anterior
-              </Button>
-              <span className="flex items-center px-4">
+            </Button>
+            <span className="flex items-center px-4 text-sm font-medium">
                 Página {page + 1} de {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-                disabled={page >= totalPages - 1}
-              >
+            </span>
+            <Button variant="outline" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
                 Siguiente
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </Button>
+        </div>
+      )}
 
+      {/* DIALOGS */}
       <PrescriptionFormDialog
         open={isFormOpen}
         onClose={() => setIsFormOpen(false)}
-        onSubmit={handleAddPrescription}
+        onSubmit={async (data) => {
+            await prescriptionService.create(data); 
+            loadPrescriptions(); 
+            setIsFormOpen(false); 
+        }}
       />
 
       <PrescriptionDetailsDialog
         open={isDetailsOpen}
-        onClose={() => {
-          setIsDetailsOpen(false);
-          setSelectedPrescription(undefined);
-        }}
+        onClose={() => { setIsDetailsOpen(false); setSelectedPrescription(undefined); }}
         prescription={selectedPrescription}
-        onEdit={handleEditPrescription}
+        onEdit={(updated) => { /* lógica de update */ loadPrescriptions(); }}
         onDelete={handleDelete}
         onExport={handleExport}
       />
     </div>
   );
 }
-

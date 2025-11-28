@@ -1,9 +1,26 @@
-import { useState, useEffect } from 'react';
-import { Search, Plus, Filter, PawPrint, Edit, Eye } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { 
+  Search, Plus, Filter, PawPrint, Edit, Eye, 
+  Dog, Cat, Bird, Rabbit, MoreHorizontal,
+  ChevronDown, ArrowUpDown, History, Phone, User
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -15,6 +32,27 @@ import { PatientFormDialog } from '@/components/patients/PatientFormDialog';
 import { PatientDetailsDialog } from '@/components/patients/PatientDetailsDialog';
 import { patientService, Patient } from '@/services';
 import { useToast } from '@/hooks/use-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { differenceInYears, differenceInMonths, format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+// Iconos minimalistas por especie
+const getSpeciesIcon = (species: string) => {
+  const s = species.toLowerCase();
+  const className = "w-4 h-4";
+  if (s === 'dog' || s === 'perro') return <Dog className={className} />;
+  if (s === 'cat' || s === 'gato') return <Cat className={className} />;
+  if (s === 'bird' || s === 'ave') return <Bird className={className} />;
+  if (s === 'rabbit' || s === 'conejo') return <Rabbit className={className} />;
+  return <PawPrint className={className} />;
+};
+
+const getSpeciesStyle = (species: string) => {
+    const s = species.toLowerCase();
+    if (s === 'dog') return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+    if (s === 'cat') return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400';
+    return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400';
+};
 
 export default function Patients() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -36,249 +74,260 @@ export default function Patients() {
       const response = await patientService.getAll();
       setPatients(response.content || []);
     } catch (error) {
-      console.error('Error al cargar pacientes:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar los pacientes',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Error al cargar listado', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredPatients = patients.filter((patient) => {
-    const matchesSearch =
-      patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (patient.ownerName && patient.ownerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (patient.breed && patient.breed.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesSpecies = speciesFilter === 'all' || patient.species.toLowerCase() === speciesFilter.toLowerCase();
-    
-    return matchesSearch && matchesSpecies;
-  });
+  const filteredPatients = useMemo(() => {
+    return patients.filter((patient) => {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        patient.name.toLowerCase().includes(searchLower) ||
+        (patient.ownerName && patient.ownerName.toLowerCase().includes(searchLower)) ||
+        (patient.breed && patient.breed.toLowerCase().includes(searchLower));
+      
+      const matchesSpecies = speciesFilter === 'all' || 
+        patient.species.toLowerCase() === speciesFilter.toLowerCase();
+      
+      return matchesSearch && matchesSpecies;
+    });
+  }, [patients, searchTerm, speciesFilter]);
 
-  const handleAddPatient = async (newPatient: Omit<Patient, 'id' | 'createdAt'>) => {
-    try {
-      console.log('Creando paciente con datos:', newPatient); // Para debug
-      await patientService.create(newPatient as any);
-      toast({
-        title: 'Éxito',
-        description: 'Paciente creado correctamente',
-      });
-      await loadPatients(); // Recargar la lista
-      setIsFormOpen(false); // Cerrar el diálogo
-    } catch (error: any) {
-      console.error('Error al crear paciente:', error);
-      const errorMessage = error?.response?.data?.message || 'No se pudo crear el paciente';
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    }
+  const calculateAge = (dateString?: string) => {
+    if (!dateString) return <span className="text-muted-foreground">-</span>;
+    const date = new Date(dateString);
+    const years = differenceInYears(new Date(), date);
+    if (years > 0) return `${years} años`;
+    const months = differenceInMonths(new Date(), date);
+    return `${months} meses`;
   };
 
-  const handleEditPatient = async (updatedPatient: Patient) => {
+  // Manejo de guardado
+  const handleSave = async (data: any) => {
     try {
-      await patientService.update(updatedPatient.id, updatedPatient as any);
-      toast({
-        title: 'Éxito',
-        description: 'Paciente actualizado correctamente',
-      });
+      if (selectedPatient) {
+        await patientService.update(selectedPatient.id, data);
+        toast({ title: 'Actualizado', description: 'Paciente actualizado correctamente' });
+      } else {
+        await patientService.create(data);
+        toast({ title: 'Creado', description: 'Paciente registrado correctamente' });
+      }
       loadPatients();
+      setIsFormOpen(false);
     } catch (error) {
-      console.error('Error al actualizar paciente:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo actualizar el paciente',
-        variant: 'destructive',
-      });
+        toast({ title: 'Error', variant: 'destructive' });
     }
-  };
-
-  const handleEdit = (patient: Patient) => {
-    setSelectedPatient(patient);
-    setIsFormOpen(true);
-  };
-
-  const handleViewDetails = (patient: Patient) => {
-    setSelectedPatient(patient);
-    setIsDetailsOpen(true);
-  };
-
-  const handleCloseForm = () => {
-    setIsFormOpen(false);
-    setSelectedPatient(undefined);
-  };
-
-  const handleCloseDetails = () => {
-    setIsDetailsOpen(false);
-    setSelectedPatient(undefined);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      
+      {/* --- HEADER CLEAN --- */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Pacientes</h1>
-          <p className="text-muted-foreground">Gestión de mascotas registradas</p>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Pacientes</h1>
+            <p className="text-muted-foreground mt-1">
+                Directorio clínico y gestión de expedientes.
+            </p>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Paciente
-        </Button>
+        <div className="flex gap-2">
+            <Button variant="outline" className="hidden sm:flex">
+                <ArrowUpDown className="mr-2 h-4 w-4" /> Exportar
+            </Button>
+            <Button onClick={() => { setSelectedPatient(undefined); setIsFormOpen(true); }} className="shadow-md">
+                <Plus className="mr-2 h-4 w-4" /> Nuevo Paciente
+            </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nombre, propietario o raza..."
+      {/* --- TOOLBAR --- */}
+      <div className="flex flex-col md:flex-row gap-4 items-center bg-muted/40 p-2 rounded-xl border">
+        <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input 
+                placeholder="Buscar por nombre, chip o propietario..." 
+                className="pl-10 bg-background border-none shadow-sm h-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select value={speciesFilter} onValueChange={setSpeciesFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filtrar por especie" />
+            />
+        </div>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+            <Filter className="h-4 w-4 text-muted-foreground hidden md:block" />
+            <Select value={speciesFilter} onValueChange={setSpeciesFilter}>
+                <SelectTrigger className="w-full md:w-[200px] h-10 bg-background border-none shadow-sm">
+                    <SelectValue placeholder="Especie" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas las especies</SelectItem>
-                  <SelectItem value="dog">Perros</SelectItem>
-                  <SelectItem value="cat">Gatos</SelectItem>
-                  <SelectItem value="bird">Aves</SelectItem>
-                  <SelectItem value="rabbit">Conejos</SelectItem>
-                  <SelectItem value="hamster">Hámsters</SelectItem>
-                  <SelectItem value="other">Otros</SelectItem>
+                    <SelectItem value="all">Todas las especies</SelectItem>
+                    <SelectItem value="dog">Perros</SelectItem>
+                    <SelectItem value="cat">Gatos</SelectItem>
+                    <SelectItem value="bird">Aves</SelectItem>
+                    <SelectItem value="rabbit">Conejos</SelectItem>
                 </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="text-sm text-muted-foreground">
-        Mostrando {filteredPatients.length} de {patients.length} pacientes
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
-            <p className="mt-2 text-sm text-muted-foreground">Cargando pacientes...</p>
-          </div>
+            </Select>
         </div>
-      ) : (
-        <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{filteredPatients.map((patient) => (
-          <Card key={patient.id} className="overflow-hidden transition-shadow hover:shadow-lg">
-            <CardContent className="p-0">
-              <div className="border-b border-border bg-muted/50 p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                      <PawPrint className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground">{patient.name}</h3>
-                      <p className="text-sm text-muted-foreground">{patient.breed || 'N/A'}</p>
-                    </div>
-                  </div>
-                  <Badge className="bg-primary/10 text-primary">
-                    {patient.species}
-                  </Badge>
-                </div>
-              </div>
-              
-              <div className="space-y-3 p-4">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Propietario</p>
-                    <p className="font-medium text-foreground">{patient.ownerName || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Fecha de Nacimiento</p>
-                    <p className="font-medium text-foreground">
-                      {patient.birthDate ? new Date(patient.birthDate).toLocaleDateString('es-ES') : 'N/A'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Peso</p>
-                    <p className="font-medium text-foreground">{patient.weight ? `${patient.weight} kg` : 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Género</p>
-                    <p className="font-medium text-foreground capitalize">
-                      {patient.gender === 'MALE' ? 'Macho' : patient.gender === 'FEMALE' ? 'Hembra' : 'N/A'}
-                    </p>
-                  </div>
-                </div>
-
-                {patient.microchipNumber && (
-                  <div className="rounded-lg bg-muted/50 p-2 text-xs">
-                    <span className="text-muted-foreground">Microchip: </span>
-                    <span className="font-medium text-foreground">
-                      {patient.microchipNumber}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleViewDetails(patient)}
-                  >
-                    <Eye className="mr-2 h-4 w-4" />
-                    Ver
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleEdit(patient)}
-                  >
-                    <Edit className="mr-2 h-4 w-4" />
-                    Editar
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
       </div>
 
-      {filteredPatients.length === 0 && !loading && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <PawPrint className="h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-semibold text-foreground">No se encontraron pacientes</h3>
-            <p className="text-sm text-muted-foreground">
-              Intenta ajustar los filtros de búsqueda
-            </p>
-          </CardContent>
-        </Card>
-      )}
-        </>
-      )}
+      {/* --- DATA TABLE --- */}
+      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+        <Table>
+            <TableHeader className="bg-muted/40">
+                <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[300px]">Paciente</TableHead>
+                    <TableHead>Propietario</TableHead>
+                    <TableHead>Detalles</TableHead>
+                    <TableHead>Peso</TableHead>
+                    <TableHead>Registro</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {loading ? (
+                    // Skeleton Loading Rows
+                    [...Array(5)].map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell><div className="h-10 w-32 bg-muted/50 rounded animate-pulse" /></TableCell>
+                            <TableCell><div className="h-4 w-24 bg-muted/50 rounded animate-pulse" /></TableCell>
+                            <TableCell><div className="h-4 w-16 bg-muted/50 rounded animate-pulse" /></TableCell>
+                            <TableCell><div className="h-4 w-10 bg-muted/50 rounded animate-pulse" /></TableCell>
+                            <TableCell><div className="h-4 w-20 bg-muted/50 rounded animate-pulse" /></TableCell>
+                            <TableCell className="text-right"><div className="h-8 w-8 bg-muted/50 rounded animate-pulse inline-block" /></TableCell>
+                        </TableRow>
+                    ))
+                ) : filteredPatients.length === 0 ? (
+                    <TableRow>
+                        <TableCell colSpan={6} className="h-64 text-center">
+                            <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                <Search className="h-10 w-10 mb-2 opacity-20" />
+                                <p>No se encontraron pacientes.</p>
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                ) : (
+                    <AnimatePresence>
+                        {filteredPatients.map((patient) => (
+                            <motion.tr
+                                key={patient.id}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="group hover:bg-muted/40 transition-colors border-b last:border-0"
+                            >
+                                {/* Col: Paciente */}
+                                <TableCell>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`h-10 w-10 rounded-full flex items-center justify-center ${getSpeciesStyle(patient.species)}`}>
+                                            {getSpeciesIcon(patient.species)}
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-foreground">{patient.name}</p>
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-normal border-muted-foreground/30 text-muted-foreground">
+                                                    {patient.breed || 'Sin raza'}
+                                                </Badge>
+                                                {patient.microchipNumber && (
+                                                    <span className="text-[10px] text-muted-foreground font-mono">
+                                                        #{patient.microchipNumber.slice(-4)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </TableCell>
 
+                                {/* Col: Propietario */}
+                                <TableCell>
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center gap-1.5 text-sm font-medium">
+                                            <User className="w-3 h-3 text-muted-foreground" />
+                                            {patient.ownerName}
+                                        </div>
+                                        {/* Simulación de teléfono si existiera en el modelo */}
+                                        {/* <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                                            <Phone className="w-3 h-3" />
+                                            +57 300 123 4567
+                                        </div> */}
+                                    </div>
+                                </TableCell>
+
+                                {/* Col: Detalles (Edad/Sexo) */}
+                                <TableCell>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-sm">{calculateAge(patient.birthDate)}</span>
+                                        <span className="text-xs text-muted-foreground capitalize flex items-center gap-1">
+                                            {patient.gender === 'MALE' ? 'Macho' : patient.gender === 'FEMALE' ? 'Hembra' : '-'}
+                                        </span>
+                                    </div>
+                                </TableCell>
+
+                                {/* Col: Peso */}
+                                <TableCell>
+                                    {patient.weight ? (
+                                        <span className="font-mono text-sm bg-muted/30 px-2 py-1 rounded">
+                                            {patient.weight} kg
+                                        </span>
+                                    ) : (
+                                        <span className="text-muted-foreground text-xs">-</span>
+                                    )}
+                                </TableCell>
+
+                                {/* Col: Registro */}
+                                <TableCell>
+                                    <span className="text-sm text-muted-foreground">
+                                        {patient.createdAt ? format(new Date(patient.createdAt), 'd MMM yyyy', { locale: es }) : '-'}
+                                    </span>
+                                </TableCell>
+
+                                {/* Col: Acciones */}
+                                <TableCell className="text-right">
+                                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-8 w-8 hover:bg-blue-50 hover:text-blue-600"
+                                            onClick={() => { setSelectedPatient(patient); setIsDetailsOpen(true); }}
+                                            title="Ver Expediente"
+                                        >
+                                            <Eye className="h-4 w-4" />
+                                        </Button>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-8 w-8 hover:bg-orange-50 hover:text-orange-600"
+                                            onClick={() => { setSelectedPatient(patient); setIsFormOpen(true); }}
+                                            title="Editar"
+                                        >
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                            </motion.tr>
+                        ))}
+                    </AnimatePresence>
+                )}
+            </TableBody>
+        </Table>
+      </div>
+      
+      {/* Footer Info */}
+      <div className="flex items-center justify-between text-xs text-muted-foreground px-2">
+        <p>Mostrando {filteredPatients.length} pacientes</p>
+        <p>Última actualización: hace unos segundos</p>
+      </div>
+
+      {/* DIALOGS */}
       <PatientFormDialog
         open={isFormOpen}
-        onClose={handleCloseForm}
-        onSubmit={selectedPatient ? handleEditPatient : handleAddPatient}
+        onClose={() => { setIsFormOpen(false); setSelectedPatient(undefined); }}
+        onSubmit={handleSave}
         patient={selectedPatient as any}
       />
 
       <PatientDetailsDialog
         open={isDetailsOpen}
-        onClose={handleCloseDetails}
+        onClose={() => { setIsDetailsOpen(false); setSelectedPatient(undefined); }}
         patient={selectedPatient as any}
       />
     </div>

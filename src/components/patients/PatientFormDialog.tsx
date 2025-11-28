@@ -100,7 +100,7 @@ export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientF
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name || !formData.breed || !formData.weight) {
       toast.error('Por favor completa todos los campos obligatorios');
       return;
@@ -149,8 +149,8 @@ export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientF
         <DialogHeader>
           <DialogTitle>{patient ? 'Editar Paciente' : 'Nuevo Paciente'}</DialogTitle>
           <DialogDescription>
-            {patient 
-              ? 'Actualiza la información del paciente.' 
+            {patient
+              ? 'Actualiza la información del paciente.'
               : 'Completa el formulario para registrar un nuevo paciente.'}
           </DialogDescription>
         </DialogHeader>
@@ -259,8 +259,8 @@ export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientF
               value={formData.ownerId}
               onValueChange={(value) => {
                 const selectedOwner = owners.find(o => o.id === value);
-                setFormData({ 
-                  ...formData, 
+                setFormData({
+                  ...formData,
                   ownerId: value,
                   ownerName: selectedOwner ? `${selectedOwner.firstName} ${selectedOwner.lastName}` : ''
                 });

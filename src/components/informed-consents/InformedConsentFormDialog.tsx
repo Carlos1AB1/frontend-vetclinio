@@ -94,7 +94,7 @@ export function InformedConsentFormDialog({ open, onClose, onSubmit, consent }: 
   const loadVeterinarians = async () => {
     try {
       const response = await userService.getAll(0, 100);
-      const vets = response.content.filter((u: any) => 
+      const vets = response.content.filter((u: any) =>
         u.roles?.some((r: any) => r.name === 'VETERINARIAN' || r === 'VETERINARIAN')
       );
       setVeterinarians(vets);
@@ -105,7 +105,7 @@ export function InformedConsentFormDialog({ open, onClose, onSubmit, consent }: 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.patientId || !formData.ownerId || !formData.veterinarianId || !formData.procedureType || !formData.procedureDescription) {
       toast.error('Por favor completa los campos obligatorios');
       return;
@@ -124,7 +124,7 @@ export function InformedConsentFormDialog({ open, onClose, onSubmit, consent }: 
         benefits: formData.benefits || undefined,
         alternatives: formData.alternatives || undefined,
       };
-      
+
       await onSubmit(consentData);
     } catch (error) {
       console.error('Error al guardar consentimiento:', error);

@@ -90,7 +90,7 @@ export function PrescriptionFormDialog({ open, onClose, onSubmit, prescription }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.medicalRecordId || !formData.patientId || !formData.medicationName) {
       toast.error('Por favor completa los campos obligatorios');
       return;
@@ -109,7 +109,7 @@ export function PrescriptionFormDialog({ open, onClose, onSubmit, prescription }
         startDate: formData.startDate ? new Date(formData.startDate).toISOString() : new Date().toISOString(),
         endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined,
       };
-      
+
       await onSubmit(prescriptionData);
     } catch (error) {
       console.error('Error al guardar prescripción:', error);

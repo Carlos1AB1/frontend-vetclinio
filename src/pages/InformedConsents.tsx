@@ -1,23 +1,36 @@
-import { useState, useEffect } from 'react';
-import { Search, Plus, FileText, Eye, Edit, Trash2, CheckCircle } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { 
+  Search, Plus, FileText, Eye, Edit, Trash2, 
+  CheckCircle2, PenTool, ShieldCheck, AlertTriangle, 
+  Clock, Calendar, UserCheck
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { InformedConsentFormDialog } from '@/components/informed-consents/InformedConsentFormDialog';
 import { InformedConsentDetailsDialog } from '@/components/informed-consents/InformedConsentDetailsDialog';
 import { informedConsentService, InformedConsent } from '@/services/informedConsentService';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Configuración de traducción de tipos de procedimientos
+const procedureTypeLabels: Record<string, string> = {
+  SURGERY: 'Cirugía',
+  ANESTHESIA: 'Anestesia',
+  VACCINATION: 'Vacunación',
+  DIAGNOSTIC: 'Diagnóstico',
+  TREATMENT: 'Tratamiento',
+  OTHER: 'Otro',
+};
+
+const getProcedureTypeLabel = (type: string | undefined): string => {
+  if (!type) return 'Sin especificar';
+  return procedureTypeLabels[type] || type;
+};
 
 export default function InformedConsents() {
   const [consents, setConsents] = useState<InformedConsent[]>([]);
@@ -28,259 +41,214 @@ export default function InformedConsents() {
   const [selectedConsent, setSelectedConsent] = useState<InformedConsent | undefined>();
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   const [activeTab, setActiveTab] = useState('all');
   const { toast } = useToast();
 
   useEffect(() => {
-    loadConsents();
-    loadPendingConsents();
+    loadData();
   }, [page, activeTab]);
 
-  const loadConsents = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const response = await informedConsentService.getAll(page, 10);
-      setConsents(response.content || []);
-      setTotalPages(response.totalPages || 0);
+      const [allRes, pendingRes] = await Promise.all([
+          informedConsentService.getAll(page, 10),
+          informedConsentService.getPendingConsents()
+      ]);
+      setConsents(allRes.content || []);
+      setPendingConsents(pendingRes || []);
     } catch (error) {
-      console.error('Error al cargar consentimientos:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar los consentimientos',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error de sincronización', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const loadPendingConsents = async () => {
-    try {
-      const response = await informedConsentService.getPendingConsents();
-      setPendingConsents(response || []);
-    } catch (error) {
-      console.error('Error al cargar consentimientos pendientes:', error);
-    }
-  };
+  const displayedConsents = useMemo(() => {
+      const source = activeTab === 'all' ? consents : pendingConsents;
+      return source.filter((c) => 
+        c.procedureType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.patientName?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+  }, [consents, pendingConsents, activeTab, searchTerm]);
 
-  const filteredConsents = (activeTab === 'all' ? consents : pendingConsents).filter((consent) => {
-    const matchesSearch =
-      consent.procedureType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      consent.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      consent.patientName?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    return matchesSearch;
-  });
-
-  const handleAddConsent = async (newConsent: any) => {
-    try {
-      await informedConsentService.create(newConsent);
-      toast({
-        title: 'Éxito',
-        description: 'Consentimiento creado correctamente',
-      });
-      await loadConsents();
-      await loadPendingConsents();
-      setIsFormOpen(false);
-    } catch (error: any) {
-      console.error('Error al crear consentimiento:', error);
-      const errorMessage = error?.response?.data?.message || 'No se pudo crear el consentimiento';
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleSignConsent = async (id: number) => {
-    try {
-      // Usar el nombre del usuario actual como firma
-      const signature = `Firmado digitalmente - ${new Date().toLocaleString('es-ES')}`;
-      await informedConsentService.signConsent(id, signature);
-      toast({
-        title: 'Éxito',
-        description: 'Consentimiento firmado correctamente',
-      });
-      await loadConsents();
-      await loadPendingConsents();
-      setIsDetailsOpen(false);
-    } catch (error) {
-      console.error('Error al firmar consentimiento:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo firmar el consentimiento',
-        variant: 'destructive',
-      });
-    }
+  // --- ACTIONS ---
+  const handleSign = async (id: number) => {
+      try {
+          const signature = `Firmado digitalmente - ${new Date().toLocaleString('es-ES')}`;
+          await informedConsentService.signConsent(id, signature);
+          toast({ title: 'Documento Firmado', description: 'El consentimiento ha sido legalizado correctamente.' });
+          loadData();
+          setIsDetailsOpen(false);
+      } catch (error) {
+          toast({ title: 'Error al firmar', variant: 'destructive' });
+      }
   };
 
   const handleDelete = async (id: number) => {
-    try {
-      await informedConsentService.delete(id);
-      toast({
-        title: 'Éxito',
-        description: 'Consentimiento eliminado correctamente',
-      });
-      loadConsents();
-      loadPendingConsents();
-      setIsDetailsOpen(false);
-    } catch (error) {
-      console.error('Error al eliminar consentimiento:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo eliminar el consentimiento',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const getStatusBadge = (consent: InformedConsent) => {
-    if (consent.isSigned) {
-      return <Badge variant="default">Firmado</Badge>;
-    }
-    return <Badge variant="secondary">Pendiente</Badge>;
+      try {
+          await informedConsentService.delete(id);
+          toast({ title: 'Eliminado', description: 'Documento eliminado del sistema.' });
+          loadData();
+          setIsDetailsOpen(false);
+      } catch (error) {
+          toast({ title: 'Error', variant: 'destructive' });
+      }
   };
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+      
+      {/* --- HEADER --- */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Consentimientos Informados</h1>
-          <p className="text-muted-foreground">Gestión de documentos de consentimiento informado</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            Gestión Legal <ShieldCheck className="h-6 w-6 text-primary" />
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Repositorio de consentimientos informados y autorizaciones.
+          </p>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Consentimiento
-        </Button>
+        <div className="flex gap-2">
+            <Button 
+                onClick={() => setIsFormOpen(true)} 
+                className="shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+            >
+                <Plus className="mr-2 h-4 w-4" /> Nuevo Documento
+            </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Lista de Consentimientos</CardTitle>
-            <div className="flex gap-2">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar consentimientos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 w-64"
-                />
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      {/* --- TABS & FILTERS --- */}
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-muted/40 p-2 rounded-xl border">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
             <TabsList>
-              <TabsTrigger value="all">Todos</TabsTrigger>
-              <TabsTrigger value="pending">
-                Pendientes ({pendingConsents.length})
-              </TabsTrigger>
+                <TabsTrigger value="all" className="w-24">Todos</TabsTrigger>
+                <TabsTrigger value="pending" className="relative">
+                    Pendientes
+                    {pendingConsents.length > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] text-white animate-pulse">
+                            {pendingConsents.length}
+                        </span>
+                    )}
+                </TabsTrigger>
             </TabsList>
-            <TabsContent value={activeTab} className="mt-4">
-              {loading ? (
-                <div className="text-center py-8">Cargando consentimientos...</div>
-              ) : filteredConsents.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No hay consentimientos registrados
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {filteredConsents.map((consent) => (
-                    <Card key={consent.id} className="hover:bg-accent/50 transition-colors">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <FileText className="h-5 w-5 text-primary" />
-                              <h3 className="font-semibold text-lg">{consent.procedureType}</h3>
-                              {getStatusBadge(consent)}
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-2">{consent.procedureDescription || consent.description}</p>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <span className="font-medium">Paciente:</span> {consent.patientName || 'N/A'}
-                              </div>
-                              {consent.signedDate && (
-                                <div>
-                                  <span className="font-medium">Firmado:</span>{' '}
-                                  {format(new Date(consent.signedDate), 'dd/MM/yyyy', { locale: es })}
-                                </div>
-                              )}
-                              {consent.createdAt && (
-                                <div>
-                                  <span className="font-medium">Creado:</span>{' '}
-                                  {format(new Date(consent.createdAt), 'dd/MM/yyyy', { locale: es })}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedConsent(consent);
-                                setIsDetailsOpen(true);
-                              }}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+        </Tabs>
+
+        <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+                placeholder="Buscar documento..." 
+                className="pl-10 h-10 border-none bg-background shadow-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+        </div>
+      </div>
+
+      {/* --- DOCUMENTS GRID --- */}
+      {loading ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[1,2,3].map(i => <div key={i} className="h-40 bg-muted/20 animate-pulse rounded-xl" />)}
+          </div>
+      ) : displayedConsents.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-muted rounded-3xl bg-muted/5">
+              <FileText className="h-12 w-12 text-muted-foreground/30 mb-3" />
+              <p className="text-muted-foreground font-medium">No hay documentos en esta vista</p>
+          </div>
+      ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+              <AnimatePresence>
+                  {displayedConsents.map((consent) => (
+                      <motion.div
+                          key={consent.id}
+                          layout
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                      >
+                          <Card 
+                              className={`
+                                  group cursor-pointer hover:shadow-lg transition-all duration-300 border-l-4 overflow-hidden
+                                  ${consent.isSigned ? 'border-l-emerald-500' : 'border-l-orange-400'}
+                              `}
+                              onClick={() => { setSelectedConsent(consent); setIsDetailsOpen(true); }}
+                          >
+                              <CardContent className="p-5">
+                                  <div className="flex justify-between items-start mb-4">
+                                      <div className={`p-2.5 rounded-lg ${consent.isSigned ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                                          <FileText className="h-6 w-6" />
+                                      </div>
+                                      {consent.isSigned ? (
+                                          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                                              <CheckCircle2 className="w-3 h-3 mr-1" /> Firmado
+                                          </Badge>
+                                      ) : (
+                                          <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 animate-pulse">
+                                              <PenTool className="w-3 h-3 mr-1" /> Pendiente
+                                          </Badge>
+                                      )}
+                                  </div>
+
+                                  <h3 className="font-bold text-lg leading-tight mb-1 truncate" title={getProcedureTypeLabel(consent.procedureType)}>
+                                      {getProcedureTypeLabel(consent.procedureType)}
+                                  </h3>
+                                  <p className="text-sm text-muted-foreground mb-4 line-clamp-1">
+                                      {consent.procedureDescription || consent.description || "Sin descripción"}
+                                  </p>
+
+                                  <div className="space-y-2 pt-3 border-t text-xs text-muted-foreground">
+                                      <div className="flex items-center gap-2">
+                                          <UserCheck className="w-3.5 h-3.5" />
+                                          <span className="font-medium text-foreground">{consent.patientName}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                          {consent.isSigned ? (
+                                              <>
+                                                  <Calendar className="w-3.5 h-3.5" />
+                                                  <span>{format(new Date(consent.signedDate!), 'dd MMM yyyy', { locale: es })}</span>
+                                              </>
+                                          ) : (
+                                              <>
+                                                  <Clock className="w-3.5 h-3.5" />
+                                                  <span>Esperando firma...</span>
+                                              </>
+                                          )}
+                                      </div>
+                                  </div>
+
+                                  {/* Hover Action */}
+                                  <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                      <span className="bg-background px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm border flex items-center gap-1">
+                                          <Eye className="w-3 h-3" /> Ver Documento
+                                      </span>
+                                  </div>
+                              </CardContent>
+                          </Card>
+                      </motion.div>
                   ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+              </AnimatePresence>
+          </div>
+      )}
 
-          {totalPages > 1 && activeTab === 'all' && (
-            <div className="flex justify-center gap-2 mt-4">
-              <Button
-                variant="outline"
-                onClick={() => setPage(Math.max(0, page - 1))}
-                disabled={page === 0}
-              >
-                Anterior
-              </Button>
-              <span className="flex items-center px-4">
-                Página {page + 1} de {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-                disabled={page >= totalPages - 1}
-              >
-                Siguiente
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
+      {/* DIALOGS */}
       <InformedConsentFormDialog
         open={isFormOpen}
         onClose={() => setIsFormOpen(false)}
-        onSubmit={handleAddConsent}
+        onSubmit={async (data) => {
+            await informedConsentService.create(data);
+            loadData();
+            setIsFormOpen(false);
+        }}
       />
 
       <InformedConsentDetailsDialog
         open={isDetailsOpen}
-        onClose={() => {
-          setIsDetailsOpen(false);
-          setSelectedConsent(undefined);
-        }}
+        onClose={() => { setIsDetailsOpen(false); setSelectedConsent(undefined); }}
         consent={selectedConsent}
-        onSign={handleSignConsent}
+        onSign={handleSign}
         onDelete={handleDelete}
       />
     </div>
   );
 }
-

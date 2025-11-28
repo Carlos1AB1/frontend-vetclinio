@@ -10,6 +10,26 @@ import { es } from 'date-fns/locale';
 type InventoryStatus = 'disponible' | 'bajo_stock' | 'agotado';
 type InventoryItemDisplay = InventoryItem & { status?: InventoryStatus; supplier: string };
 
+// Configuración de traducción de categorías de inventario
+const categoryLabels: Record<string, string> = {
+  MEDICATION: 'Medicamento',
+  SUPPLY: 'Insumo',
+  EQUIPMENT: 'Equipo',
+  FOOD: 'Alimento',
+  OTHER: 'Otro',
+  // También soportar las versiones en español por si acaso
+  medicamento: 'Medicamento',
+  material: 'Insumo',
+  alimento: 'Alimento',
+  equipo: 'Equipo',
+  otro: 'Otro',
+};
+
+const getCategoryLabel = (category: string | undefined): string => {
+  if (!category) return 'Sin categoría';
+  return categoryLabels[category] || category;
+};
+
 interface InventoryDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -37,7 +57,7 @@ export function InventoryDetailsDialog({ open, onOpenChange, item, onEdit, onDel
   };
 
   const totalValue = item.quantity * (item.unitPrice || 0);
-  const isExpiringSoon = item.expirationDate && 
+  const isExpiringSoon = item.expirationDate &&
     new Date(item.expirationDate) <= new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
   return (
@@ -50,7 +70,7 @@ export function InventoryDetailsDialog({ open, onOpenChange, item, onEdit, onDel
               <p className="text-muted-foreground mt-1">{item.description}</p>
               <div className="flex gap-2 mt-3">
                 {getStatusBadge(item.status)}
-                <Badge variant="outline" className="capitalize">{item.category}</Badge>
+                <Badge variant="outline" className="capitalize">{getCategoryLabel(item.category)}</Badge>
               </div>
             </div>
             <Package className="h-8 w-8 text-primary" />
@@ -164,8 +184,8 @@ export function InventoryDetailsDialog({ open, onOpenChange, item, onEdit, onDel
               <Edit className="mr-2 h-4 w-4" />
               Editar
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               className="flex-1"
               onClick={() => {
                 if (confirm('¿Estás seguro de eliminar este producto del inventario?')) {

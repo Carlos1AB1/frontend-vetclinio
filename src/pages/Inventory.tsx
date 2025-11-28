@@ -1,18 +1,62 @@
-import { useState, useEffect } from 'react';
-import { Plus, Search, AlertTriangle, Package } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { 
+  Plus, Search, AlertTriangle, Package, Filter, 
+  MoreHorizontal, ArrowUpDown, Box, ShoppingCart, Truck, History
+} from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Progress } from "@/components/ui/progress";
 import { InventoryFormDialog } from '@/components/inventory/InventoryFormDialog';
 import { InventoryDetailsDialog } from '@/components/inventory/InventoryDetailsDialog';
 import { inventoryService, type InventoryItem } from '@/services';
 import { useToast } from '@/hooks/use-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type InventoryStatus = 'disponible' | 'bajo_stock' | 'agotado';
 type InventoryItemDisplay = InventoryItem & { status?: InventoryStatus; supplier: string };
+
+// Configuración de traducción de categorías de inventario
+const categoryLabels: Record<string, string> = {
+  MEDICATION: 'Medicamento',
+  SUPPLY: 'Insumo',
+  EQUIPMENT: 'Equipo',
+  FOOD: 'Alimento',
+  OTHER: 'Otro',
+  // También soportar las versiones en español por si acaso
+  medicamento: 'Medicamento',
+  material: 'Insumo',
+  alimento: 'Alimento',
+  equipo: 'Equipo',
+  otro: 'Otro',
+};
+
+const getCategoryLabel = (category: string | undefined): string => {
+  if (!category) return 'Sin categoría';
+  return categoryLabels[category] || category;
+};
 
 export default function Inventory() {
   const [items, setItems] = useState<InventoryItemDisplay[]>([]);
@@ -29,6 +73,14 @@ export default function Inventory() {
     loadItems();
   }, []);
 
+  // Recargar cuando cambie el término de búsqueda
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadItems();
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
   const loadItems = async () => {
     try {
       setLoading(true);
@@ -36,243 +88,303 @@ export default function Inventory() {
       const itemsWithStatus = page.content.map(item => ({
         ...item,
         status: (item.quantity === 0 ? 'agotado' : item.quantity <= item.minQuantity ? 'bajo_stock' : 'disponible') as InventoryStatus,
-        supplier: item.supplier || 'Sin proveedor',
+        supplier: item.supplier || 'Proveedor General',
       }));
       setItems(itemsWithStatus);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'No se pudieron cargar los items',
-        variant: 'destructive',
-      });
+    } catch (error) {
+      toast({ title: 'Error de sincronización', description: 'No se pudo actualizar el inventario.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredItems = items.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (item.supplier && item.supplier.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
-    const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+  // Mapeo de valores del filtro a valores reales de categorías
+  const categoryFilterMap: Record<string, string[]> = {
+    'all': [],
+    'medicamento': ['MEDICATION', 'medicamento'],
+    'material': ['SUPPLY', 'material'],
+    'alimento': ['FOOD', 'alimento'],
+  };
 
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (item.sku && item.sku.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                           (item.supplier && item.supplier.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      const matchesCategory = categoryFilter === 'all' || 
+                            categoryFilterMap[categoryFilter]?.includes(item.category) ||
+                            item.category === categoryFilter;
+      
+      const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+      
+      return matchesSearch && matchesCategory && matchesStatus;
+    });
+  }, [items, searchTerm, categoryFilter, statusFilter]);
+
+  // --- ACTIONS ---
   const handleAddItem = async (data: any) => {
-    try {
-      await inventoryService.create({
-        name: data.name,
-        category: data.category,
-        description: data.description,
-        sku: data.sku,
-        quantity: data.quantity || 0,
-        minStockLevel: data.minStock || data.minQuantity || 10, // Valor por defecto 10
-        unitPrice: data.price || data.unitPrice,
-        supplier: data.supplier,
-        expirationDate: data.expirationDate,
-        location: data.location,
-      });
-      toast({
-        title: 'Item agregado',
-        description: 'El item se ha agregado al inventario',
-      });
-      setIsFormOpen(false);
-      loadItems();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'No se pudo agregar el item',
-        variant: 'destructive',
-      });
-    }
+      try {
+          await inventoryService.create(data); 
+          toast({ title: 'Producto registrado', className: 'bg-emerald-50 border-emerald-200' });
+          setIsFormOpen(false); 
+          loadItems();
+      } catch (error) { toast({ title: 'Error', variant: 'destructive' }); }
   };
 
   const handleEditItem = async (data: any) => {
-    if (!selectedItem) return;
-    try {
-      await inventoryService.update(selectedItem.id, {
-        name: data.name,
-        category: data.category,
-        description: data.description,
-        quantity: data.quantity,
-        minQuantity: data.minStock || data.minQuantity,
-        unitPrice: data.price || data.unitPrice,
-        supplier: data.supplier,
-      });
-      toast({
-        title: 'Item actualizado',
-        description: 'El item se ha actualizado correctamente',
-      });
-      setIsFormOpen(false);
-      setSelectedItem(null);
-      loadItems();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'No se pudo actualizar el item',
-        variant: 'destructive',
-      });
-    }
+      if (!selectedItem) return;
+      try {
+          await inventoryService.update(selectedItem.id, data); 
+          toast({ title: 'Inventario actualizado' });
+          setIsFormOpen(false); setSelectedItem(null); loadItems();
+      } catch (error) { toast({ title: 'Error', variant: 'destructive' }); }
   };
 
   const handleDeleteItem = async (id: string) => {
-    try {
-      await inventoryService.delete(id);
-      toast({
-        title: 'Item eliminado',
-        description: 'El item se ha eliminado del inventario',
-      });
-      setIsDetailsOpen(false);
-      setSelectedItem(null);
-      loadItems();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'No se pudo eliminar el item',
-        variant: 'destructive',
-      });
-    }
+      try {
+          await inventoryService.delete(id); 
+          toast({ title: 'Producto eliminado' });
+          setIsDetailsOpen(false); setSelectedItem(null); loadItems();
+      } catch (error) { toast({ title: 'Error', variant: 'destructive' }); }
   };
 
-  const getStatusBadge = (status?: InventoryStatus) => {
-    if (!status) return null;
-    const variants = {
-      disponible: 'default',
-      bajo_stock: 'secondary',
-      agotado: 'destructive',
-    };
-    const labels = {
-      disponible: 'Disponible',
-      bajo_stock: 'Bajo Stock',
-      agotado: 'Agotado',
-    };
-    return <Badge variant={variants[status] as any}>{labels[status]}</Badge>;
+  // --- UI HELPERS ---
+  const lowStockCount = items.filter(i => i.status === 'bajo_stock' || i.status === 'agotado').length;
+
+  const getStockLevelColor = (quantity: number, min: number) => {
+      if (quantity === 0) return 'bg-rose-500';
+      if (quantity <= min) return 'bg-orange-500';
+      return 'bg-emerald-500';
   };
 
-  const lowStockItems = items.filter(item => item.status === 'bajo_stock' || item.status === 'agotado');
+  const getStockPercentage = (quantity: number, min: number) => {
+      const max = min * 3; // Asumimos que el "lleno" es 3 veces el mínimo para la visualización
+      return Math.min(100, (quantity / max) * 100);
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      
+      {/* --- HEADER --- */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Inventario</h1>
-          <p className="text-muted-foreground">Gestiona el stock de medicamentos y materiales</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            Inventario Central <Box className="h-6 w-6 text-primary" />
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Control de stock, proveedores y reabastecimiento.
+          </p>
         </div>
-        <Button onClick={() => { setSelectedItem(null); setIsFormOpen(true); }}>
-          <Plus className="mr-2 h-4 w-4" />
-          Agregar Producto
+        <Button onClick={() => { setSelectedItem(null); setIsFormOpen(true); }} className="shadow-lg shadow-primary/20 hover:scale-105 transition-transform">
+          <Plus className="mr-2 h-4 w-4" /> Registrar Producto
         </Button>
       </div>
 
-      {lowStockItems.length > 0 && (
-        <Card className="border-warning bg-warning/10 p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-warning mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-foreground">Alertas de Stock</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                {lowStockItems.length} producto(s) con stock bajo o agotado
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      <Card className="p-6">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nombre o proveedor..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              <SelectItem value="medicamento">Medicamento</SelectItem>
-              <SelectItem value="material">Material</SelectItem>
-              <SelectItem value="alimento">Alimento</SelectItem>
-              <SelectItem value="equipo">Equipo</SelectItem>
-              <SelectItem value="otro">Otro</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="disponible">Disponible</SelectItem>
-              <SelectItem value="bajo_stock">Bajo Stock</SelectItem>
-              <SelectItem value="agotado">Agotado</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {filteredItems.length === 0 ? (
-          <div className="py-12 text-center">
-            <Package className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-semibold text-foreground">No hay productos</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {searchTerm || categoryFilter !== 'all' || statusFilter !== 'all'
-                ? 'No se encontraron productos con los filtros aplicados'
-                : 'Comienza agregando tu primer producto al inventario'}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Categoría</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Proveedor</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredItems.map((item) => (
-                  <TableRow key={item.id} className="cursor-pointer hover:bg-muted/50">
-                    <TableCell className="font-medium">
-                      <div>
-                        <p className="font-semibold text-foreground">{item.name}</p>
-                        <p className="text-sm text-muted-foreground">{item.description}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="capitalize">{item.category}</TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-semibold text-foreground">{item.quantity} {item.unit}</p>
-                        <p className="text-xs text-muted-foreground">Mínimo: {item.minQuantity}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>{item.supplier}</TableCell>
-                    <TableCell>{getStatusBadge(item.status)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => { setSelectedItem(item); setIsDetailsOpen(true); }}
-                      >
-                        Ver Detalles
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+      {/* --- ALERTS BANNER --- */}
+      <AnimatePresence>
+        {lowStockCount > 0 && (
+            <motion.div 
+                initial={{ opacity: 0, height: 0 }} 
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+            >
+                <Card className="border-l-4 border-l-orange-500 bg-orange-50/50 shadow-sm">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-orange-100 p-2 rounded-full">
+                                <AlertTriangle className="h-5 w-5 text-orange-600" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-orange-900">Atención Requerida</h3>
+                                <p className="text-sm text-orange-800">
+                                    Tienes <strong>{lowStockCount} productos</strong> con niveles críticos de inventario.
+                                </p>
+                            </div>
+                        </div>
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="bg-white border-orange-200 text-orange-700 hover:bg-orange-100"
+                            onClick={() => setStatusFilter('bajo_stock')}
+                        >
+                            Ver Productos
+                        </Button>
+                    </CardContent>
+                </Card>
+            </motion.div>
         )}
-      </Card>
+      </AnimatePresence>
 
+      {/* --- TOOLBAR --- */}
+      <div className="flex flex-col md:flex-row gap-4 items-center bg-muted/40 p-2 rounded-xl border sticky top-4 z-20 backdrop-blur-md">
+        <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+                placeholder="Buscar por nombre, SKU o proveedor..." 
+                className="pl-10 bg-background border-none shadow-sm h-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+        </div>
+        <div className="flex gap-2 w-full md:w-auto">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-full md:w-[160px] h-10 bg-background border-none shadow-sm">
+                    <SelectValue placeholder="Categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    <SelectItem value="medicamento">Medicamentos</SelectItem>
+                    <SelectItem value="material">Insumos</SelectItem>
+                    <SelectItem value="alimento">Alimentos</SelectItem>
+                </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-[160px] h-10 bg-background border-none shadow-sm">
+                    <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="disponible">🟢 Disponible</SelectItem>
+                    <SelectItem value="bajo_stock">🟡 Bajo Stock</SelectItem>
+                    <SelectItem value="agotado">🔴 Agotado</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+      </div>
+
+      {/* --- DATA TABLE --- */}
+      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+        <Table>
+            <TableHeader className="bg-muted/40">
+                <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[300px]">Producto</TableHead>
+                    <TableHead>Categoría</TableHead>
+                    <TableHead className="w-[200px]">Nivel de Stock</TableHead>
+                    <TableHead>Proveedor</TableHead>
+                    <TableHead className="text-right">Precio</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {loading ? (
+                    // Skeleton Rows
+                    [...Array(5)].map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell><div className="h-10 w-32 bg-muted/50 rounded animate-pulse" /></TableCell>
+                            <TableCell><div className="h-4 w-24 bg-muted/50 rounded animate-pulse" /></TableCell>
+                            <TableCell><div className="h-4 w-32 bg-muted/50 rounded animate-pulse" /></TableCell>
+                            <TableCell><div className="h-4 w-20 bg-muted/50 rounded animate-pulse" /></TableCell>
+                            <TableCell><div className="h-4 w-16 bg-muted/50 rounded animate-pulse ml-auto" /></TableCell>
+                            <TableCell />
+                        </TableRow>
+                    ))
+                ) : filteredItems.length === 0 ? (
+                    <TableRow>
+                        <TableCell colSpan={6} className="h-64 text-center">
+                            <div className="flex flex-col items-center justify-center text-muted-foreground opacity-50">
+                                <Package className="h-12 w-12 mb-3" />
+                                <p>No se encontraron productos.</p>
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                ) : (
+                    <AnimatePresence>
+                        {filteredItems.map((item) => (
+                            <motion.tr
+                                key={item.id}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="group hover:bg-muted/40 transition-colors border-b last:border-0 cursor-pointer"
+                                onClick={() => { setSelectedItem(item); setIsDetailsOpen(true); }}
+                            >
+                                {/* Col: Producto */}
+                                <TableCell>
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 font-bold border border-slate-200">
+                                            {item.name.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-foreground line-clamp-1">{item.name}</p>
+                                            <p className="text-xs text-muted-foreground font-mono">SKU: {item.sku || 'N/A'}</p>
+                                        </div>
+                                    </div>
+                                </TableCell>
+
+                                {/* Col: Categoría */}
+                                <TableCell>
+                                    <Badge variant="secondary" className="capitalize font-normal text-muted-foreground bg-muted/50">
+                                        {getCategoryLabel(item.category)}
+                                    </Badge>
+                                </TableCell>
+
+                                {/* Col: Stock Visual */}
+                                <TableCell>
+                                    <div className="space-y-1.5">
+                                        <div className="flex justify-between text-xs">
+                                            <span className="font-semibold">{item.quantity} {item.unit}</span>
+                                            <span className="text-muted-foreground">Min: {item.minQuantity}</span>
+                                        </div>
+                                        <Progress 
+                                            value={getStockPercentage(item.quantity, item.minQuantity)} 
+                                            className="h-2" 
+                                            indicatorColor={getStockLevelColor(item.quantity, item.minQuantity)} 
+                                        />
+                                    </div>
+                                </TableCell>
+
+                                {/* Col: Proveedor */}
+                                <TableCell>
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Truck className="w-3.5 h-3.5" />
+                                        <span className="truncate max-w-[120px]" title={item.supplier}>{item.supplier}</span>
+                                    </div>
+                                </TableCell>
+
+                                {/* Col: Precio */}
+                                <TableCell className="text-right">
+                                    <span className="font-mono font-medium">
+                                        ${Number(item.unitPrice).toLocaleString()}
+                                    </span>
+                                </TableCell>
+
+                                {/* Col: Menu */}
+                                <TableCell>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => { setSelectedItem(item); setIsDetailsOpen(true); }}>
+                                                Ver Detalles
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedItem(item); 
+                                                setIsFormOpen(true);
+                                            }}>
+                                                Editar Stock
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </motion.tr>
+                        ))}
+                    </AnimatePresence>
+                )}
+            </TableBody>
+        </Table>
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-muted-foreground px-2">
+        <p>{filteredItems.length} productos listados</p>
+        <p>Valores actualizados en tiempo real</p>
+      </div>
+
+      {/* DIALOGS */}
       <InventoryFormDialog
         open={isFormOpen}
         onOpenChange={setIsFormOpen}

@@ -64,7 +64,7 @@ export function AppointmentFormDialog({ appointment, children, onSuccess }: Appo
   const [veterinarians, setVeterinarians] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
   const { user } = useAuth();
-  
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: appointment ? {
@@ -98,7 +98,7 @@ export function AppointmentFormDialog({ appointment, children, onSuccess }: Appo
     setLoadingData(true);
     try {
       console.log('🔄 Cargando datos reales desde backend...');
-      
+
       const [patientsRes, ownersRes, usersRes] = await Promise.all([
         patientService.getAll(0, 100),
         ownerService.getAll(0, 100),
@@ -138,7 +138,7 @@ export function AppointmentFormDialog({ appointment, children, onSuccess }: Appo
         formattedDate = formattedDate + ':00';
       }
       // El backend espera LocalDateTime en formato ISO sin zona horaria: "YYYY-MM-DDTHH:mm:ss"
-      
+
       const payload = {
         patientId: parseInt(data.patientId),
         ownerId: parseInt(data.ownerId),
@@ -166,11 +166,11 @@ export function AppointmentFormDialog({ appointment, children, onSuccess }: Appo
         localStorage.setItem('appointment_created', Date.now().toString());
         window.dispatchEvent(new Event('appointment_created'));
       }
-      
+
       console.log('✅ Cita guardada, cerrando diálogo y llamando onSuccess...');
       setOpen(false);
       form.reset();
-      
+
       if (onSuccess) {
         console.log('🔄 Ejecutando onSuccess callback...');
         onSuccess();
@@ -208,8 +208,8 @@ export function AppointmentFormDialog({ appointment, children, onSuccess }: Appo
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Paciente *</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
+                    <Select
+                      onValueChange={field.onChange}
                       defaultValue={field.value}
                       disabled={loadingData || !!appointment}
                     >
@@ -246,8 +246,8 @@ export function AppointmentFormDialog({ appointment, children, onSuccess }: Appo
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Propietario *</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
+                    <Select
+                      onValueChange={field.onChange}
                       defaultValue={field.value}
                       disabled={loadingData}
                     >
@@ -285,8 +285,8 @@ export function AppointmentFormDialog({ appointment, children, onSuccess }: Appo
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Veterinario *</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
+                  <Select
+                    onValueChange={field.onChange}
                     defaultValue={field.value}
                     disabled={loadingData}
                   >
@@ -325,10 +325,10 @@ export function AppointmentFormDialog({ appointment, children, onSuccess }: Appo
                   <FormItem>
                     <FormLabel>Fecha y Hora de la Cita *</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="datetime-local" 
+                      <Input
+                        type="datetime-local"
                         min={new Date().toISOString().slice(0, 16)}
-                        {...field} 
+                        {...field}
                       />
                     </FormControl>
                     <FormDescription>

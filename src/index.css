@@ -115,3 +115,44 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  /* Sobrescribir bg-primary para usar el degradado azul */
+  .bg-primary {
+    background: linear-gradient(to bottom right, rgb(37, 99, 235), rgb(29, 78, 216)) !important;
+  }
+  
+  /* Para dark mode */
+  .dark .bg-primary {
+    background: linear-gradient(to bottom right, rgb(29, 78, 216), rgb(30, 64, 175)) !important;
+  }
+  
+  /* Hover states */
+  .hover\:bg-primary\/90:hover {
+    background: linear-gradient(to bottom right, rgb(37, 99, 235), rgb(29, 78, 216)) !important;
+    opacity: 0.9;
+  }
+  
+  .dark .hover\:bg-primary\/90:hover {
+    background: linear-gradient(to bottom right, rgb(29, 78, 216), rgb(30, 64, 175)) !important;
+    opacity: 0.9;
+  }
+  
+  /* Texto con degradado azul para text-primary */
+  .text-primary {
+    background: linear-gradient(to bottom right, rgb(37, 99, 235), rgb(29, 78, 216));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  /* Para dark mode - degradado más claro */
+  .dark .text-primary {
+    background: linear-gradient(to bottom right, rgb(59, 130, 246), rgb(37, 99, 235));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}

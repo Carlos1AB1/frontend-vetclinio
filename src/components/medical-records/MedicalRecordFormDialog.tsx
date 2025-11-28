@@ -67,7 +67,7 @@ export function MedicalRecordFormDialog({ record, children, onSuccess }: Medical
   const [veterinarians, setVeterinarians] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
   const { user } = useAuth();
-  
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: record ? {
@@ -160,7 +160,7 @@ export function MedicalRecordFormDialog({ record, children, onSuccess }: Medical
         await medicalRecordService.create(payload);
         toast.success('Historia clínica creada exitosamente');
       }
-      
+
       setOpen(false);
       form.reset();
       onSuccess?.();
@@ -195,8 +195,8 @@ export function MedicalRecordFormDialog({ record, children, onSuccess }: Medical
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Paciente *</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
+                    <Select
+                      onValueChange={field.onChange}
                       defaultValue={field.value}
                       disabled={loadingData || !!record}
                     >
@@ -233,8 +233,8 @@ export function MedicalRecordFormDialog({ record, children, onSuccess }: Medical
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Veterinario *</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
+                    <Select
+                      onValueChange={field.onChange}
                       defaultValue={field.value}
                       disabled={loadingData}
                     >
@@ -274,10 +274,10 @@ export function MedicalRecordFormDialog({ record, children, onSuccess }: Medical
                   <FormItem>
                     <FormLabel>Fecha y Hora de Atención *</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="datetime-local" 
+                      <Input
+                        type="datetime-local"
                         max={new Date().toISOString().slice(0, 16)}
-                        {...field} 
+                        {...field}
                       />
                     </FormControl>
                     <FormDescription>
@@ -295,10 +295,10 @@ export function MedicalRecordFormDialog({ record, children, onSuccess }: Medical
                   <FormItem>
                     <FormLabel>Fecha de Seguimiento (Opcional)</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="datetime-local" 
+                      <Input
+                        type="datetime-local"
                         min={new Date().toISOString().slice(0, 16)}
-                        {...field} 
+                        {...field}
                       />
                     </FormControl>
                     <FormDescription>
