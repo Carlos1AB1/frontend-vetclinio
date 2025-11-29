@@ -60,9 +60,13 @@ export default function Login() {
     } catch (error) {
       console.error('Error al iniciar sesión:', error);
       toast.error('Credenciales incorrectas');
+      setLoading(false);
     } finally {
-      if (!loading) setLoading(false); // Mantener loading un poco más si es éxito para la transición
-      else setLoading(false);
+      // El loading se maneja en el catch y en el success
+      // Solo se resetea aquí si no se hizo antes
+      if (loading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -83,7 +87,7 @@ export default function Login() {
     visible: { 
         y: 0, 
         opacity: 1,
-        transition: { type: "spring", stiffness: 100 }
+        transition: { type: "spring" as const, stiffness: 100 }
     }
   };
 
@@ -119,7 +123,15 @@ export default function Login() {
                 {/* Header */}
                 <motion.div variants={itemVariants} className="text-center lg:text-left space-y-2">
                     <div className="flex items-center justify-center lg:justify-start gap-2 mb-6">
-                        <img src="/logo.png" alt="VetClinic Logo" className="h-10 w-10" />
+                        <img 
+                            src="/logo.png" 
+                            alt="VetClinic Logo" 
+                            className="h-10 w-10 object-contain" 
+                            onError={(e) => {
+                                console.error('Error loading logo:', e);
+                                (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                        />
                         <span className="font-bold text-xl tracking-tight">VetClinic<span className="text-indigo-600">Pro</span></span>
                     </div>
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Bienvenido de nuevo</h1>
@@ -153,7 +165,13 @@ export default function Login() {
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="password" className={focusedField === 'password' ? 'text-indigo-600' : ''}>Contraseña</Label>
-                        
+                            <button
+                                type="button"
+                                onClick={() => navigate('/forgot-password')}
+                                className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline font-medium transition-colors"
+                            >
+                                ¿Olvidaste tu contraseña?
+                            </button>
                         </div>
                         <div className="relative group">
                             <div className="absolute left-3 top-2.5 text-muted-foreground group-hover:text-indigo-600 transition-colors">
@@ -201,7 +219,7 @@ export default function Login() {
 
         {/* --- RIGHT SIDE: VISUAL CINEMÁTICO --- */}
         <div className="hidden lg:block w-1/2 relative bg-gray-900 overflow-hidden">
-            {/* Image */}
+            {/* Video */}
             <motion.div 
                 initial={{ scale: 1.1, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -209,9 +227,12 @@ export default function Login() {
                 className="absolute inset-0"
             >
                 <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/90 to-purple-900/40 mix-blend-multiply z-10" />
-                <img 
-                    src="https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=2068&auto=format&fit=crop" 
-                    alt="Veterinarian with dog" 
+                <video 
+                    src="/Video_Generation_Confirmation.mp4" 
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
                     className="w-full h-full object-cover"
                 />
             </motion.div>

@@ -410,7 +410,15 @@ const Navbar = ({ scrolled, navigate }: { scrolled: boolean, navigate: any }) =>
     >
         <div className="container mx-auto px-6 flex items-center justify-between">
             <div className="flex items-center gap-2 group cursor-pointer">
-                <img src="/logo.png" alt="VetClinic Logo" className="h-10 w-10 group-hover:rotate-12 transition-transform duration-300" />
+                <img 
+                    src="/logo.png" 
+                    alt="VetClinic Logo" 
+                    className="h-10 w-10 group-hover:rotate-12 transition-transform duration-300 object-contain" 
+                    onError={(e) => {
+                        console.error('Error loading logo:', e);
+                        (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                />
                 <h1 className="text-xl font-bold tracking-tight">VetClinic<span className="text-indigo-600">Pro</span></h1>
             </div>
             
