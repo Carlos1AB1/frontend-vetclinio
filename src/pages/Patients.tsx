@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { 
   Search, Plus, Filter, PawPrint, Edit, Eye, 
   Dog, Cat, Bird, Rabbit, MoreHorizontal,
-  ChevronDown, ArrowUpDown, History, Phone, User
+  ChevronDown, ArrowUpDown, History, Phone, User,
+  Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -121,6 +122,79 @@ export default function Patients() {
     }
   };
 
+  // Función auxiliar para calcular edad como string
+  const calculateAgeString = (dateString?: string): string => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    const years = differenceInYears(new Date(), date);
+    if (years > 0) return `${years} años`;
+    const months = differenceInMonths(new Date(), date);
+    return `${months} meses`;
+  };
+
+  // Exportar a CSV
+  const handleExportCSV = () => {
+    try {
+      // Encabezados CSV
+      const headers = [
+        'Nombre',
+        'Especie',
+        'Raza',
+        'Género',
+        'Fecha de Nacimiento',
+        'Edad',
+        'Peso (kg)',
+        'Chip',
+        'Propietario',
+        'Fecha de Registro'
+      ];
+
+      // Convertir datos a filas CSV
+      const rows = filteredPatients.map(patient => {
+        const birthDate = patient.birthDate ? format(new Date(patient.birthDate), 'dd/MM/yyyy', { locale: es }) : '';
+        const age = calculateAgeString(patient.birthDate);
+        const gender = patient.gender === 'MALE' ? 'Macho' : patient.gender === 'FEMALE' ? 'Hembra' : '-';
+        const createdAt = patient.createdAt ? format(new Date(patient.createdAt), 'dd/MM/yyyy', { locale: es }) : '';
+
+        return [
+          patient.name || '',
+          patient.species || '',
+          patient.breed || '',
+          gender,
+          birthDate,
+          age,
+          patient.weight ? `${patient.weight}` : '',
+          patient.microchipNumber || '',
+          patient.ownerName || '',
+          createdAt
+        ];
+      });
+
+      // Crear contenido CSV
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      // Crear BOM para UTF-8 (para Excel)
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `pacientes_${format(new Date(), 'yyyyMMdd_HHmmss', { locale: es })}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({ title: 'Exportación exitosa', description: `Se exportaron ${filteredPatients.length} pacientes a CSV` });
+    } catch (error) {
+      console.error('Error al exportar CSV:', error);
+      toast({ title: 'Error', description: 'No se pudo exportar el archivo CSV', variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       
@@ -133,8 +207,13 @@ export default function Patients() {
             </p>
         </div>
         <div className="flex gap-2">
-            <Button variant="outline" className="hidden sm:flex">
-                <ArrowUpDown className="mr-2 h-4 w-4" /> Exportar
+            <Button 
+                variant="outline" 
+                className="hidden sm:flex"
+                onClick={handleExportCSV}
+                disabled={filteredPatients.length === 0}
+            >
+                <Download className="mr-2 h-4 w-4" /> Exportar CSV
             </Button>
             <Button onClick={() => { setSelectedPatient(undefined); setIsFormOpen(true); }} className="shadow-md">
                 <Plus className="mr-2 h-4 w-4" /> Nuevo Paciente

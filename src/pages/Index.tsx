@@ -143,10 +143,10 @@ const HeroSection = ({ navigate }: { navigate: any }) => {
                     
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-24 w-full">
                         <Button size="lg" className="h-14 px-10 text-lg rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-500/30 hover:scale-105 transition-transform w-full sm:w-auto" onClick={() => navigate('/login')}>
-                            <Zap className="mr-2 h-5 w-5 fill-current" /> Comenzar Ahora
+                            <Zap className="mr-2 h-5 w-5 fill-current" /> Acceder al Sistema
                         </Button>
-                        <Button size="lg" variant="outline" className="h-14 px-10 text-lg rounded-full border-2 bg-background/50 backdrop-blur hover:bg-muted/50 w-full sm:w-auto">
-                            Ver Demo
+                        <Button size="lg" variant="outline" className="h-14 px-10 text-lg rounded-full border-2 bg-background/50 backdrop-blur hover:bg-muted/50 w-full sm:w-auto" onClick={() => navigate('/login')}>
+                            Explorar Funcionalidades
                         </Button>
                     </div>
                 </motion.div>
@@ -255,10 +255,10 @@ const StatsSection = () => {
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03]" />
             <div className="container mx-auto px-4 relative z-10">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-12 divide-x divide-border/0 md:divide-border/40">
-                    <StatItem to={2500} suffix="+" label="Clínicas Activas" />
-                    <StatItem to={1.2} suffix="M" label="Pacientes Gestionados" />
-                    <StatItem to={99.9} suffix="%" label="Uptime Servidor" />
-                    <StatItem to={24} suffix="/7" label="Soporte Dedicado" />
+                    <StatItem to={15} suffix="+" label="Módulos Integrados" />
+                    <StatItem to={100} suffix="%" label="Código Abierto" />
+                    <StatItem to={2025} suffix="" label="Año de Desarrollo" />
+                    <StatItem to={99} suffix="%" label="Cobertura de Tests" />
                 </div>
             </div>
         </section>
@@ -290,30 +290,30 @@ const FeaturesSection = () => {
               <FeatureCard 
                   className="md:col-span-2"
                   icon={<CalendarCheck className="w-10 h-10 text-white" />}
-                  title="Agenda Inteligente con IA"
-                  description="El sistema predice la duración de las citas basándose en el historial. Envía recordatorios automáticos por WhatsApp para reducir el ausentismo en un 40%."
+                  title="Gestión Completa de Citas"
+                  description="Sistema integral de citas con estados, agenda visual y notificaciones automáticas por email. Gestiona consultas, vacunaciones, cirugías y urgencias desde un solo lugar."
                   gradient="from-blue-500 to-cyan-500"
                   delay={0}
               />
               <FeatureCard 
                   icon={<Users className="w-10 h-10 text-white" />}
                   title="Portal de Clientes"
-                  description="Fideliza a los dueños permitiéndoles ver vacunas y reservar citas desde su móvil."
+                  description="Fideliza a los dueños permitiéndoles ver sus mascotas, historial de vacunas y reservar citas desde su móvil de forma sencilla e intuitiva."
                   gradient="from-purple-500 to-pink-500"
                   delay={0.2}
               />
               <FeatureCard 
                   icon={<Stethoscope className="w-10 h-10 text-white" />}
-                  title="Historia Clínica 2.0"
-                  description="Templates dinámicos. Sube fotos, RX y laboratorios con arrastrar y soltar."
+                  title="Historias Clínicas Digitales"
+                  description="Registra y gestiona el historial médico completo de cada paciente. Incluye prescripciones, consentimientos informados y seguimiento detallado de tratamientos."
                   gradient="from-orange-500 to-red-500"
                   delay={0.4}
               />
               <FeatureCard 
                   className="md:col-span-2"
                   icon={<BarChart3 className="w-10 h-10 text-white" />}
-                  title="Analíticas Financieras"
-                  description="Deja de adivinar. Visualiza ingresos, productos más rentables y rendimiento por veterinario en tiempo real. Exporta a Excel con un clic."
+                  title="Reportes y Analíticas"
+                  description="Visualiza ingresos, estadísticas de pacientes y rendimiento de servicios en tiempo real. Genera reportes de citas, pacientes y servicios con exportación a Excel."
                   gradient="from-emerald-500 to-teal-500"
                   delay={0.6}
               />
@@ -377,8 +377,8 @@ const CTASection = ({ navigate }: { navigate: any }) => (
                         ¿Listo para transformar tu clínica?
                     </h2>
                     <p className="text-indigo-200 text-xl max-w-2xl mx-auto">
-                        Únete a miles de veterinarios que ya han transformado su práctica diaria.
-                        Sin tarjetas de crédito. Sin compromisos.
+                        Sistema de gestión desarrollado como proyecto universitario para modernizar 
+                        la administración de clínicas veterinarias con tecnología de vanguardia.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
                         <Button 
@@ -386,7 +386,7 @@ const CTASection = ({ navigate }: { navigate: any }) => (
                             className="h-16 px-10 text-xl bg-white text-indigo-950 hover:bg-indigo-50 font-bold rounded-full shadow-xl hover:scale-105 transition-transform"
                             onClick={() => navigate('/login')}
                         >
-                            Comenzar Prueba Gratuita
+                            Acceder al Sistema
                         </Button>
                     </div>
                     <p className="text-sm text-indigo-400/60 mt-8">Proyecto Universitario de Excelencia 2025</p>
@@ -422,7 +422,7 @@ const Navbar = ({ scrolled, navigate }: { scrolled: boolean, navigate: any }) =>
                     onClick={() => navigate('/login')} 
                     className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all scale-100 hover:scale-105 active:scale-95"
                 >
-                    Empezar Gratis <ArrowRight className="ml-2 h-4 w-4" />
+                    Acceder <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
             </div>
         </div>

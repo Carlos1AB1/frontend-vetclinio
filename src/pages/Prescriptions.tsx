@@ -77,10 +77,21 @@ export default function Prescriptions() {
   }, [prescriptions, searchTerm, statusFilter]);
 
   // --- ACTIONS ---
-  const handleExport = async (id: number, format: 'PDF' | 'EXCEL') => {
+  const handleExport = async (id: number, format: 'PDF' | 'EXCEL'): Promise<Blob> => {
     try {
-        toast({ title: 'Generando documento...', description: 'La descarga comenzará en breve.' });
+        toast({ title: 'Generando documento...', description: 'Por favor espere...' });
         const blob = await prescriptionService.exportPrescription(id, format);
+        toast({ title: 'Documento generado', className: 'bg-green-50 border-green-200' });
+        return blob;
+    } catch (error) {
+        toast({ title: 'Error de exportación', variant: 'destructive' });
+        throw error;
+    }
+  };
+
+  const handleDownload = async (id: number, format: 'PDF' | 'EXCEL') => {
+    try {
+        const blob = await handleExport(id, format);
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -89,9 +100,8 @@ export default function Prescriptions() {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-        toast({ title: 'Descarga completa', className: 'bg-green-50 border-green-200' });
     } catch (error) {
-        toast({ title: 'Error de exportación', variant: 'destructive' });
+        // Error ya manejado en handleExport
     }
   };
 
@@ -215,10 +225,13 @@ export default function Prescriptions() {
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
                         >
-                            <Card className={`
-                                h-full flex flex-col relative overflow-hidden transition-all duration-300 hover:shadow-xl border-l-4
-                                ${isActive ? 'border-l-emerald-500' : 'border-l-slate-300'}
-                            `}>
+                            <Card 
+                                className={`
+                                    h-full flex flex-col relative overflow-hidden transition-all duration-300 hover:shadow-xl border-l-4 cursor-pointer
+                                    ${isActive ? 'border-l-emerald-500' : 'border-l-slate-300'}
+                                `}
+                                onClick={() => { setSelectedPrescription(p); setIsDetailsOpen(true); }}
+                            >
                                 {/* Header */}
                                 <div className="p-5 pb-0 flex justify-between items-start">
                                     <div className="flex gap-3">
@@ -240,7 +253,12 @@ export default function Prescriptions() {
                                     
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 -mt-1 -mr-2">
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-8 w-8 -mt-1 -mr-2"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
                                                 <MoreVertical className="h-4 w-4 text-muted-foreground" />
                                             </Button>
                                         </DropdownMenuTrigger>
@@ -248,11 +266,11 @@ export default function Prescriptions() {
                                             <DropdownMenuItem onClick={() => { setSelectedPrescription(p); setIsDetailsOpen(true); }}>
                                                 <Eye className="mr-2 h-4 w-4" /> Ver Detalles
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleExport(p.id, 'PDF')}>
-                                                <FileText className="mr-2 h-4 w-4" /> Exportar PDF
+                                            <DropdownMenuItem onClick={() => handleDownload(p.id, 'PDF')}>
+                                                <FileText className="mr-2 h-4 w-4" /> Descargar PDF
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleExport(p.id, 'EXCEL')}>
-                                                <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel
+                                            <DropdownMenuItem onClick={() => handleDownload(p.id, 'EXCEL')}>
+                                                <FileSpreadsheet className="mr-2 h-4 w-4" /> Descargar Excel
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDelete(p.id)}>

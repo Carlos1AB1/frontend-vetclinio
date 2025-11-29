@@ -12,7 +12,8 @@ import {
     Loader2, 
     ArrowRight, 
     CheckCircle2, 
-    Star 
+    Star,
+    ArrowLeft
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -103,6 +104,18 @@ export default function Login() {
                 initial="hidden"
                 animate="visible"
             >
+                {/* Back Button */}
+                <motion.div variants={itemVariants}>
+                    <Button
+                        variant="ghost"
+                        onClick={() => navigate('/')}
+                        className="mb-4 text-muted-foreground hover:text-foreground"
+                    >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Volver al inicio
+                    </Button>
+                </motion.div>
+
                 {/* Header */}
                 <motion.div variants={itemVariants} className="text-center lg:text-left space-y-2">
                     <div className="flex items-center justify-center lg:justify-start gap-2 mb-6">

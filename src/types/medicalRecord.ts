@@ -13,6 +13,7 @@ export interface MedicalRecord {
   vitalSigns?: string;
   weight?: number;
   temperature?: number;
+  heartRate?: number;
   notes?: string;
   followUpRequired: boolean;
   followUpDate?: string;
@@ -32,6 +33,7 @@ export interface CreateMedicalRecordRequest {
   vitalSigns?: string;
   weight?: number;
   temperature?: number;
+  heartRate?: number;
   notes?: string;
   followUpRequired?: boolean;
   followUpDate?: string;
@@ -44,6 +46,7 @@ export interface UpdateMedicalRecordRequest {
   vitalSigns?: string;
   weight?: number;
   temperature?: number;
+  heartRate?: number;
   notes?: string;
   followUpRequired?: boolean;
   followUpDate?: string;

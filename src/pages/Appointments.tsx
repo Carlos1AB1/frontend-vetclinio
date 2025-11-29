@@ -131,7 +131,7 @@ export default function Appointments() {
         {/* LEFT SIDE: CALENDAR & FILTERS (Solo visible en modo diario o desktop grande) */}
         <div className={`lg:col-span-4 xl:col-span-3 space-y-6 ${viewMode === 'list' ? 'hidden lg:block' : ''}`}>
             <Card className="overflow-hidden border shadow-lg">
-                <div className="p-4 bg-gradient-to-br from-blue-600 to-blue-700 border-b">
+                <div className="p-4 bg-gradient-to-br from-indigo-600 to-indigo-700 border-b">
                     <h3 className="font-semibold text-white flex items-center gap-2">
                         <CalendarIcon className="w-4 h-4" /> Selector de Fecha
                     </h3>
@@ -148,8 +148,8 @@ export default function Appointments() {
                             today: startOfToday()
                         }}
                         modifiersClassNames={{
-                            booked: "font-bold text-blue-700 dark:text-blue-400 relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-blue-600 dark:after:bg-blue-400 after:rounded-full",
-                            today: "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 font-semibold"
+                            booked: "font-bold text-indigo-700 dark:text-indigo-400 relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-indigo-600 dark:after:bg-indigo-400 after:rounded-full",
+                            today: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-100 font-semibold"
                         }}
                         classNames={{
                             months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
@@ -166,8 +166,8 @@ export default function Appointments() {
                             row: "flex w-full mt-2",
                             cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
                             day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground",
-                            day_selected: "bg-gradient-to-br from-blue-600 to-blue-700 text-white hover:bg-gradient-to-br hover:from-blue-700 hover:to-blue-800 focus:bg-gradient-to-br focus:from-blue-600 focus:to-blue-700",
-                            day_today: "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 font-semibold",
+                            day_selected: "bg-gradient-to-br from-indigo-600 to-indigo-700 text-white hover:bg-gradient-to-br hover:from-indigo-700 hover:to-indigo-800 focus:bg-gradient-to-br focus:from-indigo-600 focus:to-indigo-700",
+                            day_today: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-100 font-semibold",
                             day_outside: "text-muted-foreground opacity-50",
                             day_disabled: "text-muted-foreground opacity-50",
                             day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
