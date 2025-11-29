@@ -52,18 +52,37 @@ type FormData = z.infer<typeof formSchema>;
 
 interface AppointmentFormDialogProps {
   appointment?: Appointment;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   onSuccess?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function AppointmentFormDialog({ appointment, children, onSuccess }: AppointmentFormDialogProps) {
-  const [open, setOpen] = useState(false);
+export function AppointmentFormDialog({ 
+  appointment, 
+  children, 
+  onSuccess, 
+  open: controlledOpen, 
+  onOpenChange: controlledOnOpenChange 
+}: AppointmentFormDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [patients, setPatients] = useState<any[]>([]);
   const [owners, setOwners] = useState<any[]>([]);
   const [veterinarians, setVeterinarians] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
   const { user } = useAuth();
+
+  // Si se pasa `open` y `onOpenChange`, usar modo controlado; sino, modo no controlado
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen! : internalOpen;
+  const setOpen = (value: boolean) => {
+    if (isControlled) {
+      controlledOnOpenChange?.(value);
+    } else {
+      setInternalOpen(value);
+    }
+  };
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -188,7 +207,7 @@ export function AppointmentFormDialog({ appointment, children, onSuccess }: Appo
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      {children && <DialogTrigger asChild>{children}</DialogTrigger>}
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>

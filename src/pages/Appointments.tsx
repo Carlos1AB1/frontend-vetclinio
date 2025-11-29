@@ -42,6 +42,8 @@ export default function Appointments() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [viewMode, setViewMode] = useState<'daily' | 'list'>('daily');
 
   useEffect(() => {
@@ -74,12 +76,24 @@ export default function Appointments() {
   const handleCancel = async (id: number) => {
     try {
       await appointmentService.cancel(id);
-      toast.success('Cita cancelada');
+      toast.success('Cita cancelada exitosamente');
       loadAppointments();
       setIsDetailsOpen(false);
-    } catch (error) {
-      toast.error('Error al cancelar');
+    } catch (error: any) {
+      console.error('Error al cancelar cita:', error);
+      toast.error(error?.response?.data?.message || 'Error al cancelar la cita');
     }
+  };
+
+  const handleEdit = (appointment: Appointment) => {
+    setEditingAppointment(appointment);
+    setIsDetailsOpen(false);
+    setIsFormOpen(true);
+  };
+
+  const handleFormClose = () => {
+    setIsFormOpen(false);
+    setEditingAppointment(null);
   };
 
   // Filtrado de citas
@@ -117,11 +131,9 @@ export default function Appointments() {
                     <TabsTrigger value="list">Listado Global</TabsTrigger>
                 </TabsList>
             </Tabs>
-            <AppointmentFormDialog onSuccess={loadAppointments}>
-                <Button className="shadow-md">
-                    <Plus className="mr-2 h-4 w-4" /> Nueva Cita
-                </Button>
-            </AppointmentFormDialog>
+            <Button className="shadow-md" onClick={() => { setEditingAppointment(null); setIsFormOpen(true); }}>
+                <Plus className="mr-2 h-4 w-4" /> Nueva Cita
+            </Button>
         </div>
       </div>
 
@@ -303,11 +315,22 @@ export default function Appointments() {
           appointment={selectedAppointment}
           open={isDetailsOpen}
           onOpenChange={setIsDetailsOpen}
-          onEdit={() => setIsDetailsOpen(false)}
+          onEdit={() => handleEdit(selectedAppointment)}
           onCancel={() => handleCancel(selectedAppointment.id)}
           onDelete={() => handleDelete(selectedAppointment.id)}
         />
       )}
+
+      {/* FORM DIALOG (Crear/Editar) */}
+      <AppointmentFormDialog
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) handleFormClose();
+        }}
+        onSuccess={loadAppointments}
+        appointment={editingAppointment}
+      />
     </div>
   );
 }

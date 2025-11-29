@@ -32,7 +32,6 @@ import { es } from 'date-fns/locale';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 // @ts-ignore - html2pdf.js no tiene tipos TypeScript
-import html2pdf from 'html2pdf.js';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { medicalRecordPDFTemplate, renderMedicalRecordTemplate } from '@/templates/medical-record-pdf-template';
@@ -118,29 +117,50 @@ export function MedicalRecordDetailsDialog({
             container = document.createElement('div');
             container.innerHTML = htmlContent;
             
+            // Ancho A4 en píxeles: 210mm = 794px a 96 DPI
+            const A4_WIDTH_PX = 794;
+            
             // Estilos para hacer el contenedor visible pero fuera de la vista
             Object.assign(container.style, {
                 position: 'fixed',
                 left: '0',
                 top: '0',
-                width: '794px', // Ancho A4 en píxeles (210mm a 96 DPI)
+                width: `${A4_WIDTH_PX}px`,
+                maxWidth: `${A4_WIDTH_PX}px`,
                 backgroundColor: 'white',
-                padding: '20px',
-                zIndex: '99999', // Muy alto para estar encima
-                transform: 'translateX(-100%)', // Mover fuera de la pantalla pero visible
+                padding: '0',
+                margin: '0',
+                zIndex: '99999',
+                transform: 'translateX(-100%)',
                 visibility: 'visible',
-                opacity: '1'
+                opacity: '1',
+                overflow: 'visible',
+                boxSizing: 'border-box'
             });
             
             document.body.appendChild(container);
+
+            // Esperar a que las imágenes se carguen completamente
+            const images = container.querySelectorAll('img');
+            const imagePromises = Array.from(images).map((img) => {
+                if (img.complete) return Promise.resolve();
+                return new Promise<void>((resolve) => {
+                    img.onload = () => resolve();
+                    img.onerror = () => resolve(); // Continuar aunque falle la imagen
+                    setTimeout(() => resolve(), 3000); // Timeout de 3 segundos
+                });
+            });
+            
+            await Promise.all(imagePromises);
 
             // Esperar a que el contenido se renderice completamente
             await new Promise(resolve => {
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
-                        // Forzar reflow
+                        // Forzar reflow y layout
                         void container?.offsetHeight;
-                        setTimeout(resolve, 500);
+                        void container?.scrollHeight;
+                        setTimeout(resolve, 800); // Más tiempo para asegurar renderizado
                     });
                 });
             });
@@ -149,37 +169,64 @@ export function MedicalRecordDetailsDialog({
                 throw new Error('Contenedor no disponible');
             }
 
-            // Usar html2canvas para capturar el contenido
+            // Usar html2canvas para capturar el contenido con mejor calidad
             const canvas = await html2canvas(container, {
-                scale: 2,
+                scale: 2, // Mayor resolución
                 useCORS: true,
+                allowTaint: false,
                 logging: false,
                 backgroundColor: '#ffffff',
-                width: container.scrollWidth,
+                width: A4_WIDTH_PX,
                 height: container.scrollHeight,
-                windowWidth: container.scrollWidth,
-                windowHeight: container.scrollHeight
+                windowWidth: A4_WIDTH_PX,
+                windowHeight: container.scrollHeight,
+                onclone: (clonedDoc) => {
+                    // Asegurar que los estilos se apliquen en el documento clonado
+                    const clonedContainer = clonedDoc.querySelector('div');
+                    if (clonedContainer) {
+                        clonedContainer.style.width = `${A4_WIDTH_PX}px`;
+                        clonedContainer.style.maxWidth = `${A4_WIDTH_PX}px`;
+                    }
+                }
             });
+
+            // Verificar que el canvas tenga contenido
+            if (canvas.width === 0 || canvas.height === 0) {
+                throw new Error('El canvas está vacío');
+            }
 
             // Crear PDF con jsPDF
             const imgWidth = 210; // Ancho A4 en mm
             const pageHeight = 297; // Alto A4 en mm
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
             
-            const pdf = new jsPDF('portrait', 'mm', 'a4');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4',
+                compress: true
+            });
+            
             let heightLeft = imgHeight;
             let position = 0;
+            const imgData = canvas.toDataURL('image/jpeg', 0.95); // Buena calidad
 
-            // Agregar la imagen al PDF
-            pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-
-            // Si el contenido es más alto que una página, agregar páginas adicionales
-            while (heightLeft > 0) {
-                position = heightLeft - imgHeight;
-                pdf.addPage();
-                pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, position, imgWidth, imgHeight);
+            // Agregar la primera página
+            if (heightLeft <= pageHeight) {
+                // Contenido cabe en una página
+                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+            } else {
+                // Contenido requiere múltiples páginas
+                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
                 heightLeft -= pageHeight;
+
+                // Agregar páginas adicionales si es necesario
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
             }
 
             // Descargar el PDF
@@ -212,8 +259,40 @@ export function MedicalRecordDetailsDialog({
     };
 
     const generatePDFHTML = () => {
-        // Obtener la URL del logo (ruta absoluta desde el servidor)
-        const logoUrl = `${window.location.origin}/logo.png`;
+        // Usar URL directa de Imgur para el logo (mejor compatibilidad)
+        const logoUrl = 'https://i.imgur.com/y9qQYK4.png';
+        
+        // Validar y formatear signos vitales
+        const formatWeight = () => {
+            if (record.weight !== null && record.weight !== undefined && record.weight > 0) {
+                return `${record.weight} kg`;
+            }
+            return 'No registrado';
+        };
+        
+        const formatTemperature = () => {
+            if (record.temperature !== null && record.temperature !== undefined && record.temperature > 0) {
+                return `${record.temperature}°C`;
+            }
+            return 'No registrado';
+        };
+        
+        const formatHeartRate = () => {
+            if (record.heartRate !== null && record.heartRate !== undefined && record.heartRate > 0) {
+                return `${record.heartRate} bpm`;
+            }
+            return 'No registrado';
+        };
+        
+        // Debug: Log de valores para verificar
+        console.log('📊 Signos Vitales - Record:', {
+            weight: record.weight,
+            temperature: record.temperature,
+            heartRate: record.heartRate,
+            formattedWeight: formatWeight(),
+            formattedTemperature: formatTemperature(),
+            formattedHeartRate: formatHeartRate()
+        });
         
         // Preparar los datos para el template
         const templateData = {
@@ -223,20 +302,21 @@ export function MedicalRecordDetailsDialog({
             recordDate: formatDate(record.recordDate),
             recordTime: formatTime(record.recordDate),
             followUpBadge: record.followUpRequired 
-                ? '<div style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #F59E0B 0%, #F97316 100%); color: white; padding: 8px 16px; border-radius: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);"><span>⚠️</span> SEGUIMIENTO REQUERIDO</div>' 
+                ? '<div style="display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #F59E0B 0%, #F97316 100%); color: white; padding: 10px 20px; border-radius: 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);"><span style="font-size: 16px;">⚠️</span> SEGUIMIENTO REQUERIDO</div>' 
                 : '',
-            weight: record.weight ? `${record.weight} kg` : '--',
-            temperature: record.temperature ? `${record.temperature}°C` : '--',
-            heartRate: record.heartRate ? `${record.heartRate} bpm` : '--',
+            weight: formatWeight(),
+            temperature: formatTemperature(),
+            heartRate: formatHeartRate(),
             symptomsSection: record.symptoms 
-                ? `<div style="padding: 0 40px 30px 40px; background: #f8fafc;">
-                    <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 5px solid #f59e0b;">
-                        <div style="background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); padding: 18px 25px; color: white;">
-                            <h2 style="margin: 0; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 24px;">🩺</span> Síntomas Reportados
+                ? `<div style="padding: 0 45px 35px 45px; background: #ffffff;">
+                    <div style="background: linear-gradient(to bottom, #f8fafc 0%, #ffffff 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(245, 158, 11, 0.1); border-left: 5px solid #f59e0b;">
+                        <div style="background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); padding: 20px 28px; color: white; display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 45px; height: 45px; background: rgba(255,255,255,0.25); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">🩺</div>
+                            <h2 style="margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 0.3px;">
+                                Síntomas Reportados
                             </h2>
                         </div>
-                        <div style="padding: 25px; line-height: 1.8; font-size: 14px; color: #334155;">
+                        <div style="padding: 28px; line-height: 1.8; font-size: 14px; color: #1e293b; background: white; min-height: 60px;">
                             ${record.symptoms}
                         </div>
                     </div>
@@ -245,14 +325,15 @@ export function MedicalRecordDetailsDialog({
             diagnosis: record.diagnosis,
             treatment: record.treatment,
             notesSection: record.notes 
-                ? `<div style="padding: 0 40px 30px 40px; background: #f8fafc;">
-                    <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 5px solid #6366f1;">
-                        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 18px 25px; color: white;">
-                            <h2 style="margin: 0; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 24px;">📝</span> Notas Clínicas
+                ? `<div style="padding: 0 45px 35px 45px; background: #ffffff;">
+                    <div style="background: linear-gradient(to bottom, #f8fafc 0%, #ffffff 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(99, 102, 241, 0.1); border-left: 5px solid #6366f1;">
+                        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 20px 28px; color: white; display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 45px; height: 45px; background: rgba(255,255,255,0.25); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">📝</div>
+                            <h2 style="margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 0.3px;">
+                                Notas Clínicas
                             </h2>
                         </div>
-                        <div style="padding: 25px; line-height: 1.8; font-size: 14px; color: #334155; font-style: italic;">
+                        <div style="padding: 28px; line-height: 1.8; font-size: 14px; color: #1e293b; font-style: italic; background: white; min-height: 60px;">
                             ${record.notes}
                         </div>
                     </div>
@@ -260,9 +341,11 @@ export function MedicalRecordDetailsDialog({
                 : '',
             veterinarianName: record.veterinarianName,
             followUpDateSection: record.followUpDate 
-                ? `<div style="text-align: right;">
-                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; margin-bottom: 8px;">Próxima Visita</div>
-                    <div style="font-size: 16px; font-weight: 600; color: #f59e0b;">📅 ${formatDate(record.followUpDate)}</div>
+                ? `<div style="background: rgba(255,255,255,0.05); padding: 25px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); text-align: right;">
+                    <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.7; margin-bottom: 10px; font-weight: 600;">Próxima Visita</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #fbbf24; display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                        <span style="font-size: 20px;">📅</span> ${formatDate(record.followUpDate)}
+                    </div>
                    </div>` 
                 : '',
             generatedDate: format(new Date(), "dd/MM/yyyy HH:mm", { locale: es })
