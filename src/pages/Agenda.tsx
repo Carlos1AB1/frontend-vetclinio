@@ -202,19 +202,19 @@ export default function Agenda() {
     const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
     return (
-      <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden border">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-px bg-border rounded-lg overflow-hidden border">
         {weekDays.map((day) => {
           const isCurrentDay = isToday(day);
           const dayAppointments = appointments.filter(apt => isSameDay(new Date(apt.scheduledDate), day));
           
           return (
-            <div key={day.toISOString()} className={`min-h-[300px] bg-background p-2 flex flex-col gap-2 ${isCurrentDay ? 'bg-blue-50/30' : ''}`}>
-              <div className={`text-center p-2 rounded-lg mb-2 ${isCurrentDay ? 'bg-primary text-primary-foreground shadow-sm' : ''}`}>
+            <div key={day.toISOString()} className={`min-h-[200px] sm:min-h-[300px] bg-background p-2 flex flex-col gap-2 ${isCurrentDay ? 'bg-blue-50/30' : ''}`}>
+              <div className={`text-center p-2 rounded-lg mb-2 shrink-0 ${isCurrentDay ? 'bg-primary text-primary-foreground shadow-sm' : ''}`}>
                 <div className="text-xs uppercase font-medium opacity-70">{format(day, 'EEE', { locale: es })}</div>
                 <div className="text-lg font-bold">{format(day, 'd')}</div>
               </div>
               
-              <div className="flex-1 space-y-1.5 overflow-y-auto max-h-[400px] custom-scrollbar">
+              <div className="flex-1 space-y-1.5 overflow-y-auto max-h-[400px] custom-scrollbar min-h-0">
                 {dayAppointments.map((apt) => (
                   <AppointmentPill key={apt.id} appointment={apt} />
                 ))}
@@ -236,36 +236,38 @@ export default function Agenda() {
     const emptyDays = Array(startDayOfWeek - 1).fill(null);
 
     return (
-      <div className="bg-background rounded-lg border shadow-sm">
-        <div className="grid grid-cols-7 border-b bg-muted/20">
-            {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(d => (
-                <div key={d} className="p-3 text-center text-sm font-semibold text-muted-foreground">{d}</div>
-            ))}
-        </div>
-        <div className="grid grid-cols-7 auto-rows-fr">
-            {emptyDays.map((_, i) => <div key={`empty-${i}`} className="border-b border-r bg-muted/5 p-4 min-h-[120px]" />)}
-            {days.map(day => {
-                const dayAppointments = appointments.filter(a => isSameDay(new Date(a.scheduledDate), day));
-                const isCurrentDay = isToday(day);
-                
-                return (
-                    <div key={day.toISOString()} className={`border-b border-r p-2 min-h-[120px] transition-colors hover:bg-muted/5 ${isCurrentDay ? 'bg-blue-50/50' : ''}`}>
-                        <div className={`text-right mb-2 text-sm font-medium ${isCurrentDay ? 'text-primary' : 'text-muted-foreground'}`}>
-                            <span className={isCurrentDay ? 'bg-primary text-primary-foreground w-6 h-6 rounded-full inline-flex items-center justify-center' : ''}>
-                                {format(day, 'd')}
-                            </span>
-                        </div>
-                        <div className="space-y-1">
-                            {dayAppointments.slice(0, 3).map(apt => <AppointmentPill key={apt.id} appointment={apt} small />)}
-                            {dayAppointments.length > 3 && (
-                                <div className="text-xs text-center text-muted-foreground font-medium p-1 hover:bg-muted rounded cursor-pointer">
-                                    +{dayAppointments.length - 3} más
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                );
-            })}
+      <div className="bg-background rounded-lg border shadow-sm overflow-x-auto">
+        <div className="min-w-[600px]">
+          <div className="grid grid-cols-7 border-b bg-muted/20">
+              {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(d => (
+                  <div key={d} className="p-2 sm:p-3 text-center text-xs sm:text-sm font-semibold text-muted-foreground">{d}</div>
+              ))}
+          </div>
+          <div className="grid grid-cols-7 auto-rows-fr">
+              {emptyDays.map((_, i) => <div key={`empty-${i}`} className="border-b border-r bg-muted/5 p-2 sm:p-4 min-h-[80px] sm:min-h-[120px]" />)}
+              {days.map(day => {
+                  const dayAppointments = appointments.filter(a => isSameDay(new Date(a.scheduledDate), day));
+                  const isCurrentDay = isToday(day);
+                  
+                  return (
+                      <div key={day.toISOString()} className={`border-b border-r p-1 sm:p-2 min-h-[80px] sm:min-h-[120px] transition-colors hover:bg-muted/5 ${isCurrentDay ? 'bg-blue-50/50' : ''}`}>
+                          <div className={`text-right mb-1 sm:mb-2 text-xs sm:text-sm font-medium ${isCurrentDay ? 'text-primary' : 'text-muted-foreground'}`}>
+                              <span className={isCurrentDay ? 'bg-primary text-primary-foreground w-5 h-5 sm:w-6 sm:h-6 rounded-full inline-flex items-center justify-center text-xs' : ''}>
+                                  {format(day, 'd')}
+                              </span>
+                          </div>
+                          <div className="space-y-0.5 sm:space-y-1">
+                              {dayAppointments.slice(0, 2).map(apt => <AppointmentPill key={apt.id} appointment={apt} small />)}
+                              {dayAppointments.length > 2 && (
+                                  <div className="text-[10px] sm:text-xs text-center text-muted-foreground font-medium p-0.5 sm:p-1 hover:bg-muted rounded cursor-pointer">
+                                      +{dayAppointments.length - 2} más
+                                  </div>
+                              )}
+                          </div>
+                      </div>
+                  );
+              })}
+          </div>
         </div>
       </div>
     );
@@ -319,24 +321,26 @@ export default function Agenda() {
   return (
     <div className="space-y-6 h-full flex flex-col">
       {/* HEADER CONTROL BAR */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-background p-1">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Agenda Médica</h1>
-          <p className="text-muted-foreground">
-            {viewType === 'DAILY' && format(selectedDate, "EEEE, d 'de' MMMM yyyy", { locale: es })}
-            {viewType === 'WEEKLY' && `Semana ${format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'd MMM')} - ${format(endOfWeek(selectedDate, { weekStartsOn: 1 }), 'd MMM', { locale: es })}`}
-            {viewType === 'MONTHLY' && format(selectedDate, "MMMM yyyy", { locale: es })}
-          </p>
+      <div className="flex flex-col gap-4 bg-background p-1">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Agenda Médica</h1>
+            <p className="text-sm sm:text-base text-muted-foreground truncate">
+              {viewType === 'DAILY' && format(selectedDate, "EEEE, d 'de' MMMM yyyy", { locale: es })}
+              {viewType === 'WEEKLY' && `Semana ${format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'd MMM')} - ${format(endOfWeek(selectedDate, { weekStartsOn: 1 }), 'd MMM', { locale: es })}`}
+              {viewType === 'MONTHLY' && format(selectedDate, "MMMM yyyy", { locale: es })}
+            </p>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
             {/* VET FILTER */}
             <Select value={selectedVeterinarian} onValueChange={setSelectedVeterinarian}>
-                <SelectTrigger className="w-[200px] h-9">
-                    <User className="w-4 h-4 mr-2 text-muted-foreground" />
+                <SelectTrigger className="w-full sm:w-[200px] h-9">
+                    <User className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
                     <SelectValue placeholder="Todos los doctores" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-w-[calc(100vw-2rem)] sm:max-w-none">
                     <SelectItem value="all">Todos los doctores</SelectItem>
                     {veterinarians.map((vet) => (
                         <SelectItem key={vet.id} value={vet.id}>Dr. {vet.firstName} {vet.lastName}</SelectItem>
@@ -344,27 +348,27 @@ export default function Agenda() {
                 </SelectContent>
             </Select>
 
-            <div className="h-6 w-px bg-border mx-2 hidden sm:block" />
+            <div className="h-px w-full sm:h-6 sm:w-px bg-border sm:mx-2" />
 
             {/* NAVIGATION */}
-            <div className="flex items-center border rounded-md bg-background shadow-sm">
-                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigateDate('prev')}>
+            <div className="flex items-center border rounded-md bg-background shadow-sm w-full sm:w-auto justify-center sm:justify-start">
+                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigateDate('prev')}>
                     <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" className="h-9 px-4 font-normal" onClick={() => setSelectedDate(new Date())}>
+                <Button variant="ghost" className="h-9 px-3 sm:px-4 font-normal flex-1 sm:flex-initial" onClick={() => setSelectedDate(new Date())}>
                     Hoy
                 </Button>
-                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigateDate('next')}>
+                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigateDate('next')}>
                     <ChevronRight className="h-4 w-4" />
                 </Button>
             </div>
 
             {/* VIEW TOGGLE */}
             <Tabs value={viewType} onValueChange={(v) => setViewType(v as any)} className="w-full sm:w-auto">
-                <TabsList className="h-9 w-full sm:w-auto">
-                    <TabsTrigger value="DAILY" className="text-xs px-3">Día</TabsTrigger>
-                    <TabsTrigger value="WEEKLY" className="text-xs px-3">Semana</TabsTrigger>
-                    <TabsTrigger value="MONTHLY" className="text-xs px-3">Mes</TabsTrigger>
+                <TabsList className="h-9 w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
+                    <TabsTrigger value="DAILY" className="text-xs px-2 sm:px-3">Día</TabsTrigger>
+                    <TabsTrigger value="WEEKLY" className="text-xs px-2 sm:px-3">Semana</TabsTrigger>
+                    <TabsTrigger value="MONTHLY" className="text-xs px-2 sm:px-3">Mes</TabsTrigger>
                 </TabsList>
             </Tabs>
         </div>

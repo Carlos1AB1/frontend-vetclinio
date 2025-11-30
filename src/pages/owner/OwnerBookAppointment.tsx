@@ -129,15 +129,16 @@ export default function OwnerBookAppointment() {
             const ownerData = await ownerPortalService.getOwnerByUserId(fullUser.id);
             setOwnerId(ownerData.id);
 
-            const [petsData, usersData] = await Promise.all([
+            const [petsData, veterinariansData] = await Promise.all([
                 ownerPortalService.getMyPets(),
-                userService.getAll(0, 100),
+                userService.getVeterinarians(),
             ]);
 
+            console.log('Pets loaded:', petsData);
+            console.log('Veterinarians loaded:', veterinariansData);
+
             setPets(petsData);
-            setVeterinarians(usersData.content.filter((u: User) => 
-                u.roles?.some((r: string) => r.includes('VETERINARIAN'))
-            ));
+            setVeterinarians(veterinariansData || []);
         } catch (error) {
             console.error(error);
             toast.error('Error cargando datos del sistema');
@@ -149,11 +150,49 @@ export default function OwnerBookAppointment() {
     const onSubmit = async (data: FormData) => {
         try {
             setLoading(true);
-            await ownerPortalService.createAppointment({
+            
+            // Validar que durationMinutes esté presente
+            if (!data.durationMinutes || data.durationMinutes < 15) {
+                toast.error('La duración debe ser al menos 15 minutos');
+                setLoading(false);
+                return;
+            }
+            
+            // Validar que la fecha sea futura
+            const dateObj = new Date(data.scheduledDate);
+            const now = new Date();
+            if (dateObj <= now) {
+                toast.error('La fecha y hora de la cita debe ser futura');
+                setLoading(false);
+                return;
+            }
+            
+            // Formatear la fecha correctamente (LocalDateTime sin timezone)
+            // El formato debe ser YYYY-MM-DDTHH:mm:ss para LocalDateTime
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const hours = String(dateObj.getHours()).padStart(2, '0');
+            const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+            const seconds = String(dateObj.getSeconds()).padStart(2, '0');
+            const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+            
+            console.log('Enviando cita:', {
                 ownerId: parseInt(ownerId),
                 patientId: parseInt(data.patientId),
                 veterinarianId: data.veterinarianId,
-                scheduledDate: new Date(data.scheduledDate).toISOString(),
+                scheduledDate: formattedDate,
+                appointmentType: data.appointmentType,
+                reason: data.reason,
+                durationMinutes: data.durationMinutes,
+                notes: data.notes || '',
+            });
+            
+            await ownerPortalService.createAppointment({
+                ownerId: parseInt(ownerId),
+                patientId: parseInt(data.patientId),
+                veterinarianId: data.veterinarianId, // UUID como string
+                scheduledDate: formattedDate,
                 appointmentType: data.appointmentType,
                 reason: data.reason,
                 durationMinutes: data.durationMinutes,
@@ -301,11 +340,17 @@ export default function OwnerBookAppointment() {
                                                         </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
-                                                        {veterinarians.map((vet) => (
-                                                            <SelectItem key={vet.id} value={vet.id}>
-                                                                Dr. {vet.fullName}
+                                                        {veterinarians.length === 0 ? (
+                                                            <SelectItem value="_empty" disabled>
+                                                                No hay veterinarios disponibles
                                                             </SelectItem>
-                                                        ))}
+                                                        ) : (
+                                                            veterinarians.map((vet) => (
+                                                            <SelectItem key={vet.id} value={vet.id}>
+                                                                    Dr. {vet.fullName || vet.username}
+                                                            </SelectItem>
+                                                            ))
+                                                        )}
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />

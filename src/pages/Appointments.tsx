@@ -141,51 +141,53 @@ export default function Appointments() {
       <div className="grid lg:grid-cols-12 gap-6 h-full">
         
         {/* LEFT SIDE: CALENDAR & FILTERS (Solo visible en modo diario o desktop grande) */}
-        <div className={`lg:col-span-4 xl:col-span-3 space-y-6 ${viewMode === 'list' ? 'hidden lg:block' : ''}`}>
-            <Card className="overflow-hidden border shadow-lg">
+        <div className={`lg:col-span-4 xl:col-span-3 space-y-6 min-w-0 ${viewMode === 'list' ? 'hidden lg:block' : ''}`}>
+            <Card className="overflow-visible border shadow-lg w-full">
                 <div className="p-4 bg-gradient-to-br from-indigo-600 to-indigo-700 border-b">
                     <h3 className="font-semibold text-white flex items-center gap-2">
                         <CalendarIcon className="w-4 h-4" /> Selector de Fecha
                     </h3>
                 </div>
-                <CardContent className="p-4">
-                    <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={setSelectedDate}
-                        className="rounded-md"
-                        locale={es}
-                        modifiers={{
-                            booked: daysWithAppointments,
-                            today: startOfToday()
-                        }}
-                        modifiersClassNames={{
-                            booked: "font-bold text-indigo-700 dark:text-indigo-400 relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-indigo-600 dark:after:bg-indigo-400 after:rounded-full",
-                            today: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-100 font-semibold"
-                        }}
-                        classNames={{
-                            months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                            month: "space-y-4",
-                            caption: "flex justify-center pt-1 relative items-center",
-                            caption_label: "text-sm font-medium",
-                            nav: "space-x-1 flex items-center",
-                            nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
-                            nav_button_previous: "absolute left-1",
-                            nav_button_next: "absolute right-1",
-                            table: "w-full border-collapse space-y-1",
-                            head_row: "flex",
-                            head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-                            row: "flex w-full mt-2",
-                            cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-                            day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground",
-                            day_selected: "bg-gradient-to-br from-indigo-600 to-indigo-700 text-white hover:bg-gradient-to-br hover:from-indigo-700 hover:to-indigo-800 focus:bg-gradient-to-br focus:from-indigo-600 focus:to-indigo-700",
-                            day_today: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-100 font-semibold",
-                            day_outside: "text-muted-foreground opacity-50",
-                            day_disabled: "text-muted-foreground opacity-50",
-                            day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-                            day_hidden: "invisible",
-                        }}
-                    />
+                <CardContent className="p-4 overflow-visible w-full min-w-0">
+                    <div className="w-full min-w-0 overflow-visible">
+                        <Calendar
+                            mode="single"
+                            selected={selectedDate}
+                            onSelect={setSelectedDate}
+                            className="rounded-md w-full"
+                            locale={es}
+                            modifiers={{
+                                booked: daysWithAppointments,
+                                today: startOfToday()
+                            }}
+                            modifiersClassNames={{
+                                booked: "font-bold text-indigo-700 dark:text-indigo-400 relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-indigo-600 dark:after:bg-indigo-400 after:rounded-full",
+                                today: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-100 font-semibold"
+                            }}
+                            classNames={{
+                                months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
+                                month: "space-y-4 w-full min-w-0",
+                                caption: "flex justify-center pt-1 relative items-center w-full",
+                                caption_label: "text-sm font-medium",
+                                nav: "space-x-1 flex items-center",
+                                nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+                                nav_button_previous: "absolute left-1",
+                                nav_button_next: "absolute right-1",
+                                table: "w-full border-collapse space-y-1",
+                                head_row: "flex w-full",
+                                head_cell: "text-muted-foreground rounded-md font-normal text-[0.8rem] flex-1 text-center",
+                                row: "flex w-full mt-2",
+                                cell: "text-center text-sm p-0 relative flex-1 aspect-square [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                                day: "w-full h-full p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground flex items-center justify-center",
+                                day_selected: "bg-gradient-to-br from-indigo-600 to-indigo-700 text-white hover:bg-gradient-to-br hover:from-indigo-700 hover:to-indigo-800 focus:bg-gradient-to-br focus:from-indigo-600 focus:to-indigo-700",
+                                day_today: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-100 font-semibold",
+                                day_outside: "text-muted-foreground opacity-50",
+                                day_disabled: "text-muted-foreground opacity-50",
+                                day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                                day_hidden: "invisible",
+                            }}
+                        />
+                    </div>
                 </CardContent>
             </Card>
 
