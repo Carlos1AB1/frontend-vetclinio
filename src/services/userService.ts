@@ -137,4 +137,12 @@ export const userService = {
   async unlockUser(id: string): Promise<void> {
     await api.post(`/users/${id}/unlock`);
   },
+
+  /**
+   * Obtener solo veterinarios activos
+   */
+  async getVeterinarians(): Promise<User[]> {
+    const response = await api.get<ApiResponse<BackendUser[]>>('/users/veterinarians');
+    return response.data.data.map(mapBackendUserToFrontend);
+  },
 };

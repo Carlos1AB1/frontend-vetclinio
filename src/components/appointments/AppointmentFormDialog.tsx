@@ -116,21 +116,21 @@ export function AppointmentFormDialog({
   const loadRealData = async () => {
     setLoadingData(true);
     try {
-      console.log('🔄 Cargando datos reales desde backend...');
+      console.log('🔄 Cargando datos desde backend...');
 
-      const [patientsRes, ownersRes, usersRes] = await Promise.all([
+      const [patientsRes, ownersRes, vetsRes] = await Promise.all([
         patientService.getAll(0, 100),
         ownerService.getAll(0, 100),
-        userService.getAll(0, 100),
+        userService.getVeterinarians(),
       ]);
 
       console.log('✅ Pacientes:', patientsRes.content);
       console.log('✅ Propietarios:', ownersRes.content);
-      console.log('✅ Veterinarios:', usersRes.content);
+      console.log('✅ Veterinarios:', vetsRes);
 
       setPatients(patientsRes.content || []);
       setOwners(ownersRes.content || []);
-      setVeterinarians(usersRes.content || []);
+      setVeterinarians(vetsRes || []);
 
       if (user && !appointment) {
         form.setValue('veterinarianId', user.id);
@@ -234,7 +234,7 @@ export function AppointmentFormDialog({
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar paciente REAL" />
+                          <SelectValue placeholder="Seleccione un paciente" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -251,9 +251,6 @@ export function AppointmentFormDialog({
                         )}
                       </SelectContent>
                     </Select>
-                    <FormDescription>
-                      Datos cargados desde el backend
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -272,7 +269,7 @@ export function AppointmentFormDialog({
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar propietario REAL" />
+                          <SelectValue placeholder="Seleccione un propietario" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -289,9 +286,6 @@ export function AppointmentFormDialog({
                         )}
                       </SelectContent>
                     </Select>
-                    <FormDescription>
-                      Datos cargados desde el backend
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -311,7 +305,7 @@ export function AppointmentFormDialog({
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar veterinario REAL" />
+                        <SelectValue placeholder="Seleccione un veterinario" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -328,9 +322,6 @@ export function AppointmentFormDialog({
                       )}
                     </SelectContent>
                   </Select>
-                  <FormDescription>
-                    Datos cargados desde el backend
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

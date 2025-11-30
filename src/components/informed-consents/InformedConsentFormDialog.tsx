@@ -93,10 +93,7 @@ export function InformedConsentFormDialog({ open, onClose, onSubmit, consent }: 
 
   const loadVeterinarians = async () => {
     try {
-      const response = await userService.getAll(0, 100);
-      const vets = response.content.filter((u: any) =>
-        u.roles?.some((r: any) => r.name === 'VETERINARIAN' || r === 'VETERINARIAN')
-      );
+      const vets = await userService.getVeterinarians();
       setVeterinarians(vets);
     } catch (error) {
       console.error('Error al cargar veterinarios:', error);

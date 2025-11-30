@@ -114,10 +114,10 @@ export function MedicalRecordFormDialog({ record, children, onSuccess }: Medical
       console.log('✅ Pacientes:', patientsResponse.content);
       setPatients(patientsResponse.content || []);
 
-      console.log('🔄 Cargando VETERINARIOS REALES desde backend...');
-      const usersResponse = await userService.getAll(0, 100);
-      console.log('✅ Veterinarios:', usersResponse.content);
-      setVeterinarians(usersResponse.content || []);
+      console.log('🔄 Cargando veterinarios desde backend...');
+      const vetsResponse = await userService.getVeterinarians();
+      console.log('✅ Veterinarios:', vetsResponse);
+      setVeterinarians(vetsResponse || []);
 
       if (user && !record) {
         form.setValue('veterinarianId', user.id);
