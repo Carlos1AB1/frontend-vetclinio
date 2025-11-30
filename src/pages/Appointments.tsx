@@ -116,32 +116,32 @@ export default function Appointments() {
   }, [appointments]);
 
   return (
-    <div className="space-y-6 h-[calc(100vh-100px)] flex flex-col">
+    <div className="space-y-4 sm:space-y-6 h-[calc(100vh-100px)] flex flex-col">
       
       {/* --- HEADER --- */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Agenda Médica</h1>
-          <p className="text-muted-foreground mt-1">Planificación y control de citas.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Agenda Médica</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">Planificación y control de citas.</p>
         </div>
-        <div className="flex gap-2">
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'daily' | 'list')}>
-                <TabsList>
-                    <TabsTrigger value="daily">Vista Diaria</TabsTrigger>
-                    <TabsTrigger value="list">Listado Global</TabsTrigger>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'daily' | 'list')} className="w-full sm:w-auto">
+                <TabsList className="w-full sm:w-auto grid grid-cols-2">
+                    <TabsTrigger value="daily" className="text-xs sm:text-sm">Vista Diaria</TabsTrigger>
+                    <TabsTrigger value="list" className="text-xs sm:text-sm">Listado Global</TabsTrigger>
                 </TabsList>
             </Tabs>
-            <Button className="shadow-md" onClick={() => { setEditingAppointment(null); setIsFormOpen(true); }}>
-                <Plus className="mr-2 h-4 w-4" /> Nueva Cita
+            <Button className="shadow-md w-full sm:w-auto" onClick={() => { setEditingAppointment(null); setIsFormOpen(true); }}>
+                <Plus className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">Nueva Cita</span><span className="sm:hidden">Nueva</span>
             </Button>
         </div>
       </div>
 
       {/* --- MAIN CONTENT AREA --- */}
-      <div className="grid lg:grid-cols-12 gap-6 h-full">
+      <div className="grid lg:grid-cols-12 gap-4 sm:gap-6 h-full">
         
         {/* LEFT SIDE: CALENDAR & FILTERS (Solo visible en modo diario o desktop grande) */}
-        <div className={`lg:col-span-4 xl:col-span-3 space-y-6 min-w-0 ${viewMode === 'list' ? 'hidden lg:block' : ''}`}>
+        <div className={`lg:col-span-4 xl:col-span-3 space-y-4 sm:space-y-6 min-w-0 ${viewMode === 'list' ? 'hidden lg:block' : ''}`}>
             <Card className="overflow-visible border shadow-lg w-full">
                 <div className="p-4 bg-gradient-to-br from-indigo-600 to-indigo-700 border-b">
                     <h3 className="font-semibold text-white flex items-center gap-2">
@@ -217,7 +217,7 @@ export default function Appointments() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
                     placeholder="Buscar paciente, doctor o notas..." 
-                    className="pl-10 h-12 text-lg bg-background border-none shadow-sm"
+                    className="pl-10 h-10 sm:h-12 text-sm sm:text-lg bg-background border-none shadow-sm"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -253,48 +253,48 @@ export default function Appointments() {
                                     >
                                         <Card 
                                             className="group hover:shadow-md transition-all border-l-4 cursor-pointer overflow-hidden"
-                                            style={{ borderLeftColor: type.color.replace('bg-', '') }} // Hack rápido, idealmente usar variable CSS
+                                            style={{ borderLeftColor: type.color.replace('bg-', '') }}
                                             onClick={() => { setSelectedAppointment(apt); setIsDetailsOpen(true); }}
                                         >
-                                            <div className="p-4 flex items-center gap-4">
+                                            <div className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                                                 {/* Time Column */}
-                                                <div className="flex flex-col items-center justify-center min-w-[60px] border-r pr-4">
-                                                    <span className="text-lg font-bold text-foreground">{time}</span>
+                                                <div className="flex flex-row sm:flex-col items-center justify-center sm:min-w-[60px] sm:border-r sm:pr-4 gap-2 sm:gap-0 w-full sm:w-auto">
+                                                    <span className="text-base sm:text-lg font-bold text-foreground">{time}</span>
                                                     <span className="text-xs text-muted-foreground">{apt.durationMinutes} min</span>
                                                 </div>
 
                                                 {/* Info Column */}
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex justify-between items-start mb-1">
-                                                        <h3 className="font-bold text-lg truncate flex items-center gap-2">
+                                                <div className="flex-1 min-w-0 w-full sm:w-auto">
+                                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-1 gap-2">
+                                                        <h3 className="font-bold text-base sm:text-lg truncate flex flex-wrap items-center gap-2">
                                                             {apt.patientName}
                                                             <Badge variant="outline" className="text-[10px] font-normal h-5">
                                                                 {type.label}
                                                             </Badge>
                                                         </h3>
-                                                        <Badge variant="secondary" className={`${status.style} border-0`}>
+                                                        <Badge variant="secondary" className={`${status.style} border-0 w-fit`}>
                                                             {status.label}
                                                         </Badge>
                                                     </div>
                                                     
-                                                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
                                                         <span className="flex items-center gap-1">
-                                                            <User className="w-3 h-3" /> {apt.ownerName}
+                                                            <User className="w-3 h-3" /> <span className="truncate">{apt.ownerName}</span>
                                                         </span>
                                                         <span className="flex items-center gap-1">
-                                                            <Clock className="w-3 h-3" /> Dr. {apt.veterinarianName}
+                                                            <Clock className="w-3 h-3" /> <span className="truncate">Dr. {apt.veterinarianName}</span>
                                                         </span>
                                                     </div>
                                                     
                                                     {apt.reason && (
-                                                        <p className="text-xs text-muted-foreground mt-2 italic truncate">
+                                                        <p className="text-xs text-muted-foreground mt-2 italic line-clamp-2 sm:truncate">
                                                             "{apt.reason}"
                                                         </p>
                                                     )}
                                                 </div>
 
                                                 {/* Action Arrow */}
-                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity self-end sm:self-auto">
                                                     <Button variant="ghost" size="icon">
                                                         <ChevronRight className="w-5 h-5 text-muted-foreground" />
                                                     </Button>

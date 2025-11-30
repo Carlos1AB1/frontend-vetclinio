@@ -176,19 +176,19 @@ export function MedicalRecordFormDialog({ record, children, onSuccess }: Medical
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">
             {record ? 'Editar Historia Clínica' : 'Nueva Historia Clínica'}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             {record ? 'Actualiza el registro médico' : 'Registra una nueva atención veterinaria'}
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="patientId"
@@ -266,7 +266,7 @@ export function MedicalRecordFormDialog({ record, children, onSuccess }: Medical
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="recordDate"

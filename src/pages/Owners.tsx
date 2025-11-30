@@ -81,43 +81,43 @@ export default function Owners() {
     <div className="space-y-6 animate-in fade-in duration-500">
       
       {/* --- HEADER --- */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Directorio de Clientes</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Directorio de Clientes</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
             Gestiona la base de datos de propietarios y contactos.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Button variant="outline" className="hidden sm:flex" onClick={() => loadOwners()}>
                 <ArrowUpDown className="mr-2 h-4 w-4" /> Actualizar
             </Button>
             <OwnerFormDialog onSuccess={loadOwners}>
-                <Button className="shadow-md">
-                    <Plus className="mr-2 h-4 w-4" /> Nuevo Cliente
+                <Button className="shadow-md w-full sm:w-auto">
+                    <Plus className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">Nuevo Cliente</span><span className="sm:hidden">Nuevo</span>
                 </Button>
             </OwnerFormDialog>
         </div>
       </div>
 
       {/* --- TOOLBAR --- */}
-      <div className="flex items-center gap-4 bg-muted/40 p-2 rounded-xl border">
+      <div className="flex items-center gap-3 sm:gap-4 bg-muted/40 p-3 sm:p-2 rounded-xl border">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar por nombre, cédula o correo..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-background border-none shadow-sm h-10"
+            className="pl-10 bg-background border-none shadow-sm h-10 text-sm sm:text-base"
           />
         </div>
-        <Button variant="ghost" size="icon" className="text-muted-foreground">
+        <Button variant="ghost" size="icon" className="text-muted-foreground hidden sm:flex">
             <Filter className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* --- DATA TABLE --- */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+      {/* --- DATA TABLE (Desktop) --- */}
+      <div className="hidden md:block rounded-xl border bg-card shadow-sm overflow-hidden">
         <Table>
             <TableHeader className="bg-muted/40">
                 <TableRow className="hover:bg-transparent">
@@ -239,9 +239,96 @@ export default function Owners() {
         </Table>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground px-2">
+      {/* --- MOBILE CARDS --- */}
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          [...Array(3)].map((_, i) => (
+            <div key={i} className="rounded-xl border bg-card p-4 animate-pulse">
+              <div className="flex gap-3">
+                <div className="h-12 w-12 rounded-full bg-muted" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-32 bg-muted rounded" />
+                  <div className="h-3 w-24 bg-muted rounded" />
+                </div>
+              </div>
+            </div>
+          ))
+        ) : owners.length === 0 ? (
+          <div className="rounded-xl border bg-card p-8 text-center">
+            <Search className="h-10 w-10 mx-auto mb-2 opacity-20 text-muted-foreground" />
+            <p className="text-muted-foreground">No se encontraron clientes con esos criterios.</p>
+          </div>
+        ) : (
+          <AnimatePresence>
+            {owners.map((owner) => (
+              <motion.div
+                key={owner.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="rounded-xl border bg-card p-4 shadow-sm hover:shadow-md transition-shadow"
+                onClick={() => { setSelectedOwner(owner); setIsDetailsOpen(true); }}
+              >
+                <div className="flex items-start gap-3">
+                  <Avatar className="h-12 w-12 border border-muted flex-shrink-0">
+                    <AvatarFallback className={`${getRandomColor(owner.firstName)} font-bold text-sm`}>
+                      {getInitials(owner.firstName, owner.lastName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-foreground truncate">{owner.firstName} {owner.lastName}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">Cliente #{owner.id}</p>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => { setSelectedOwner(owner); setIsDetailsOpen(true); }}>
+                            Ver Detalles
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setSelectedOwner(owner); setIsDetailsOpen(true); }}>
+                            Editar Información
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Badge variant="outline" className="font-mono font-normal text-xs">
+                          {owner.documentType} {owner.documentNumber}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Mail className="w-3.5 h-3.5" />
+                        <span className="truncate text-xs">{owner.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Phone className="w-3.5 h-3.5" />
+                        <span className="text-xs">{owner.phone}</span>
+                      </div>
+                      {owner.city && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <MapPin className="w-3.5 h-3.5" />
+                          <span className="text-xs truncate">{owner.city}, {owner.address}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        )}
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-muted-foreground px-2">
         <p>Total: {owners.length} clientes</p>
-        <p>Base de datos sincronizada</p>
+        <p className="hidden sm:inline">Base de datos sincronizada</p>
       </div>
 
       {selectedOwner && (

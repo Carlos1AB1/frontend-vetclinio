@@ -1,8 +1,9 @@
-import { Home, Users, Calendar, FileText, Package, BarChart3, Settings, LogOut, PawPrint, UserCircle, Pill, Briefcase, ClipboardCheck, CalendarDays } from 'lucide-react';
+import { Home, Users, Calendar, FileText, Package, BarChart3, Settings, LogOut, PawPrint, UserCircle, Pill, Briefcase, ClipboardCheck, CalendarDays, X, Menu } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth, type User } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['admin', 'veterinarian', 'receptionist'] },
@@ -33,7 +34,12 @@ const getStoredUser = (): User | null => {
   return null;
 };
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function AppSidebar({ isOpen = true, onClose }: AppSidebarProps) {
   const location = useLocation();
   const { user, logout, isLoading } = useAuth();
   // Cargar usuario del localStorage de forma síncrona en el estado inicial
@@ -59,16 +65,40 @@ export function AppSidebar() {
     : (currentUser ? navigation.filter(item => item.roles.includes('admin') || item.roles.includes('receptionist')) : []);
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar">
-      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden">
-          <img src="/logo.png" alt="VetClinic Logo" className="h-10 w-10 object-contain" />
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 w-64 flex flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-300 ease-in-out lg:translate-x-0',
+          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        )}
+      >
+        <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden">
+              <img src="/logo.png" alt="VetClinic Logo" className="h-10 w-10 object-contain" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-sidebar-foreground">VetClinic</h1>
+              <p className="text-xs text-muted-foreground">Sistema de Gestión</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={onClose}
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
-        <div>
-          <h1 className="text-lg font-bold text-sidebar-foreground">VetClinic</h1>
-          <p className="text-xs text-muted-foreground">Sistema de Gestión</p>
-        </div>
-      </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-4">
         {displayNavigation.map((item) => {
@@ -105,6 +135,7 @@ export function AppSidebar() {
           Cerrar Sesión
         </button>
       </div>
-    </div>
+      </aside>
+    </>
   );
 }

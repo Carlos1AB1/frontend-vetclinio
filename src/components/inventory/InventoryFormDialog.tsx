@@ -63,16 +63,16 @@ export function InventoryFormDialog({ open, onOpenChange, onSubmit, initialData 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
         <DialogHeader>
-          <DialogTitle>{initialData ? 'Editar Producto' : 'Agregar Producto'}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg sm:text-xl">{initialData ? 'Editar Producto' : 'Agregar Producto'}</DialogTitle>
+          <DialogDescription className="text-sm">
             {initialData ? 'Modifica la información del producto' : 'Completa los datos del nuevo producto'}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="col-span-2">
               <Label htmlFor="name">Nombre del Producto *</Label>
               <Input

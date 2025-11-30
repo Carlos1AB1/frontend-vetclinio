@@ -145,17 +145,17 @@ export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientF
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px] w-[95vw] sm:w-full">
         <DialogHeader>
-          <DialogTitle>{patient ? 'Editar Paciente' : 'Nuevo Paciente'}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg sm:text-xl">{patient ? 'Editar Paciente' : 'Nuevo Paciente'}</DialogTitle>
+          <DialogDescription className="text-sm">
             {patient
               ? 'Actualiza la información del paciente.'
               : 'Completa el formulario para registrar un nuevo paciente.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Nombre *</Label>
               <Input
@@ -187,7 +187,7 @@ export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientF
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="breed">Raza *</Label>
               <Input
@@ -210,7 +210,7 @@ export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientF
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="age">Edad (años) *</Label>
               <Input
