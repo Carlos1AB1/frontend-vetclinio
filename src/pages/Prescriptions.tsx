@@ -347,16 +347,6 @@ export default function Prescriptions() {
       )}
 
       {/* DIALOGS */}
-      <PrescriptionFormDialog
-        open={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSubmit={async (data) => {
-            await prescriptionService.create(data); 
-            loadPrescriptions(); 
-            setIsFormOpen(false); 
-        }}
-      />
-
       <PrescriptionDetailsDialog
         open={isDetailsOpen}
         onClose={() => { setIsDetailsOpen(false); setSelectedPrescription(undefined); }}

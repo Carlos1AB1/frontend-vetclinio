@@ -56,12 +56,22 @@ type FormData = z.infer<typeof formSchema>;
 
 interface MedicalRecordFormDialogProps {
   record?: MedicalRecord;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   onSuccess?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function MedicalRecordFormDialog({ record, children, onSuccess }: MedicalRecordFormDialogProps) {
-  const [open, setOpen] = useState(false);
+export function MedicalRecordFormDialog({ 
+  record, 
+  children, 
+  onSuccess,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange
+}: MedicalRecordFormDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
   const [loading, setLoading] = useState(false);
   const [patients, setPatients] = useState<any[]>([]);
   const [veterinarians, setVeterinarians] = useState<any[]>([]);
@@ -103,8 +113,25 @@ export function MedicalRecordFormDialog({ record, children, onSuccess }: Medical
   useEffect(() => {
     if (open) {
       loadRealData();
+      // Si hay un record, actualizar el formulario con sus valores
+      if (record) {
+        form.reset({
+          patientId: record.patientId.toString(),
+          veterinarianId: record.veterinarianId,
+          recordDate: record.recordDate ? new Date(record.recordDate).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+          diagnosis: record.diagnosis || '',
+          treatment: record.treatment || '',
+          symptoms: record.symptoms || '',
+          vitalSigns: record.vitalSigns || '',
+          weight: record.weight?.toString() || '',
+          temperature: record.temperature?.toString() || '',
+          notes: record.notes || '',
+          followUpRequired: record.followUpRequired || false,
+          followUpDate: record.followUpDate ? new Date(record.followUpDate).toISOString().slice(0, 16) : '',
+        });
+      }
     }
-  }, [open]);
+  }, [open, record]);
 
   const loadRealData = async () => {
     setLoadingData(true);
@@ -175,7 +202,7 @@ export function MedicalRecordFormDialog({ record, children, onSuccess }: Medical
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      {children && <DialogTrigger asChild>{children}</DialogTrigger>}
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
         <DialogHeader>
           <DialogTitle className="text-lg sm:text-xl">

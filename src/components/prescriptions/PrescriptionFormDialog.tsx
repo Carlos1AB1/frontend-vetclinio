@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -13,22 +14,29 @@ import {
 } from '@/components/ui/select';
 import { medicalRecordService } from '@/services/medicalRecordService';
 import { patientService } from '@/services';
+import { inventoryService, type InventoryItem } from '@/services';
+import { prescriptionService } from '@/services/prescriptionService';
 import { toast } from 'sonner';
+import { AlertCircle, Package } from 'lucide-react';
 
 interface PrescriptionFormDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onSubmit: (prescription: any) => void;
   prescription?: any;
+  children?: React.ReactNode;
+  onSuccess?: () => void;
 }
 
-export function PrescriptionFormDialog({ open, onClose, onSubmit, prescription }: PrescriptionFormDialogProps) {
+export function PrescriptionFormDialog({ prescription, children, onSuccess }: PrescriptionFormDialogProps) {
+  const [open, setOpen] = useState(false);
   const [medicalRecords, setMedicalRecords] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
+  const [medications, setMedications] = useState<InventoryItem[]>([]);
+  const [selectedMedication, setSelectedMedication] = useState<InventoryItem | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
   const [formData, setFormData] = useState({
     medicalRecordId: '',
     patientId: '',
+    medicationId: '',
     medicationName: '',
     dosage: '',
     frequency: '',
@@ -42,10 +50,12 @@ export function PrescriptionFormDialog({ open, onClose, onSubmit, prescription }
     if (open) {
       loadMedicalRecords();
       loadPatients();
+      loadMedications();
       if (prescription) {
         setFormData({
           medicalRecordId: prescription.medicalRecordId?.toString() || '',
           patientId: prescription.patientId?.toString() || '',
+          medicationId: '',
           medicationName: prescription.medicationName || '',
           dosage: prescription.dosage || '',
           frequency: prescription.frequency || '',
@@ -58,6 +68,7 @@ export function PrescriptionFormDialog({ open, onClose, onSubmit, prescription }
         setFormData({
           medicalRecordId: '',
           patientId: '',
+          medicationId: '',
           medicationName: '',
           dosage: '',
           frequency: '',
@@ -66,6 +77,7 @@ export function PrescriptionFormDialog({ open, onClose, onSubmit, prescription }
           startDate: '',
           endDate: '',
         });
+        setSelectedMedication(null);
       }
     }
   }, [open, prescription]);
@@ -88,11 +100,47 @@ export function PrescriptionFormDialog({ open, onClose, onSubmit, prescription }
     }
   };
 
+  const loadMedications = async () => {
+    try {
+      setLoadingData(true);
+      const response = await inventoryService.getByCategory('MEDICATION');
+      setMedications(response);
+    } catch (error) {
+      console.error('Error al cargar medicamentos:', error);
+      toast.error('Error al cargar medicamentos del inventario');
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const handleMedicationChange = (medicationId: string) => {
+    const medication = medications.find(m => m.id === medicationId);
+    if (medication) {
+      setSelectedMedication(medication);
+      setFormData({
+        ...formData,
+        medicationId: medication.id,
+        medicationName: medication.name,
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.medicalRecordId || !formData.patientId || !formData.medicationName) {
+    if (!formData.medicalRecordId || !formData.patientId || !formData.medicationId) {
       toast.error('Por favor completa los campos obligatorios');
+      return;
+    }
+
+    // Validar stock
+    if (!selectedMedication) {
+      toast.error('Por favor selecciona un medicamento');
+      return;
+    }
+
+    if (selectedMedication.quantity <= 0) {
+      toast.error(`El medicamento "${selectedMedication.name}" no tiene stock disponible`);
       return;
     }
 
@@ -110,16 +158,31 @@ export function PrescriptionFormDialog({ open, onClose, onSubmit, prescription }
         endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined,
       };
 
-      await onSubmit(prescriptionData);
-    } catch (error) {
+      if (prescription) {
+        await prescriptionService.update(prescription.id, prescriptionData);
+        toast.success('Prescripción actualizada exitosamente');
+      } else {
+        await prescriptionService.create(prescriptionData);
+        toast.success('Prescripción creada exitosamente');
+      }
+
+      setOpen(false);
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (error: any) {
       console.error('Error al guardar prescripción:', error);
+      toast.error(error?.response?.data?.message || 'Error al guardar la prescripción');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {children || <Button>Nueva Prescripción</Button>}
+      </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{prescription ? 'Editar Prescripción' : 'Nueva Prescripción'}</DialogTitle>
@@ -128,13 +191,14 @@ export function PrescriptionFormDialog({ open, onClose, onSubmit, prescription }
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="medicalRecordId">Historia Clínica *</Label>
               <Select
                 value={formData.medicalRecordId}
                 onValueChange={(value) => setFormData({ ...formData, medicalRecordId: value })}
                 required
+                disabled={loadingData}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona una historia clínica" />
@@ -155,6 +219,7 @@ export function PrescriptionFormDialog({ open, onClose, onSubmit, prescription }
                 value={formData.patientId}
                 onValueChange={(value) => setFormData({ ...formData, patientId: value })}
                 required
+                disabled={loadingData}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona un paciente" />
@@ -171,17 +236,77 @@ export function PrescriptionFormDialog({ open, onClose, onSubmit, prescription }
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="medicationName">Medicamento *</Label>
-            <Input
-              id="medicationName"
-              value={formData.medicationName}
-              onChange={(e) => setFormData({ ...formData, medicationName: e.target.value })}
-              placeholder="Ej: Amoxicilina 500mg"
+            <Label htmlFor="medicationId">Medicamento *</Label>
+            <Select
+              value={formData.medicationId}
+              onValueChange={handleMedicationChange}
               required
-            />
+              disabled={loadingData}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona un medicamento del inventario" />
+              </SelectTrigger>
+              <SelectContent>
+                {medications.length === 0 ? (
+                  <SelectItem value="no-medications" disabled>
+                    No hay medicamentos disponibles
+                  </SelectItem>
+                ) : (
+                  medications.map((medication) => (
+                    <SelectItem 
+                      key={medication.id} 
+                      value={medication.id}
+                      disabled={medication.quantity <= 0}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span>{medication.name}</span>
+                        <Badge 
+                          variant={medication.quantity <= 0 ? "destructive" : medication.quantity <= medication.minQuantity ? "secondary" : "default"}
+                          className="ml-2"
+                        >
+                          {medication.quantity <= 0 ? 'Sin stock' : `${medication.quantity} ${medication.unit || 'unidades'}`}
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            {selectedMedication && (
+              <div className={`mt-2 p-3 rounded-lg border flex items-start gap-2 ${
+                selectedMedication.quantity <= 0 
+                  ? 'bg-red-50 border-red-200' 
+                  : selectedMedication.quantity <= selectedMedication.minQuantity
+                  ? 'bg-yellow-50 border-yellow-200'
+                  : 'bg-green-50 border-green-200'
+              }`}>
+                {selectedMedication.quantity <= 0 ? (
+                  <>
+                    <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-red-900">Sin stock disponible</p>
+                      <p className="text-xs text-red-700">No se puede registrar este medicamento en la prescripción</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Package className="h-5 w-5 text-green-600 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-green-900">Stock disponible</p>
+                      <p className="text-xs text-green-700">
+                        Cantidad: <strong>{selectedMedication.quantity}</strong> {selectedMedication.unit || 'unidades'}
+                        {selectedMedication.quantity <= selectedMedication.minQuantity && (
+                          <span className="ml-2 text-yellow-700">(Stock bajo)</span>
+                        )}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="dosage">Dosis *</Label>
               <Input
@@ -216,7 +341,7 @@ export function PrescriptionFormDialog({ open, onClose, onSubmit, prescription }
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="startDate">Fecha de Inicio *</Label>
               <Input
@@ -251,10 +376,13 @@ export function PrescriptionFormDialog({ open, onClose, onSubmit, prescription }
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button 
+              type="submit" 
+              disabled={loading || loadingData || (selectedMedication && selectedMedication.quantity <= 0)}
+            >
               {loading ? 'Guardando...' : prescription ? 'Actualizar' : 'Crear'}
             </Button>
           </div>

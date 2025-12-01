@@ -31,6 +31,7 @@ export default function MedicalRecords() {
   const [filterType, setFilterType] = useState('all');
   const [selectedRecord, setSelectedRecord] = useState<MedicalRecord | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -264,16 +265,33 @@ export default function MedicalRecords() {
           record={selectedRecord}
           open={isDetailsOpen}
           onOpenChange={setIsDetailsOpen}
-          onEdit={() => setIsDetailsOpen(false)}
+          onEdit={() => {
+            setIsDetailsOpen(false);
+            setIsEditOpen(true);
+          }}
           onDelete={async () => {
             try {
               await medicalRecordService.delete(selectedRecord.id);
               toast.success('Registro eliminado');
               setIsDetailsOpen(false);
+              setSelectedRecord(null);
               loadRecords();
             } catch (error) {
               toast.error('Error al eliminar');
             }
+          }}
+        />
+      )}
+
+      {selectedRecord && (
+        <MedicalRecordFormDialog
+          record={selectedRecord}
+          open={isEditOpen}
+          onOpenChange={setIsEditOpen}
+          onSuccess={() => {
+            setIsEditOpen(false);
+            setSelectedRecord(null);
+            loadRecords();
           }}
         />
       )}
