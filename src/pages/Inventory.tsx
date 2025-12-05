@@ -125,20 +125,101 @@ export default function Inventory() {
   // --- ACTIONS ---
   const handleAddItem = async (data: any) => {
       try {
-          await inventoryService.create(data); 
+          // Validar campos requeridos
+          if (!data.name || !data.category || !data.supplier) {
+              toast({ 
+                  title: 'Error de validación', 
+                  description: 'Por favor completa todos los campos obligatorios',
+                  variant: 'destructive' 
+              });
+              return;
+          }
+
+          const quantity = Number(data.quantity) || 0;
+          const minStockLevel = Number(data.minStock || data.minQuantity || 0);
+          const unitPrice = Number(data.unitPrice || data.price || 0);
+
+          // Validar que el precio sea mayor a 0
+          if (unitPrice <= 0) {
+              toast({ 
+                  title: 'Error de validación', 
+                  description: 'El precio unitario debe ser mayor a 0',
+                  variant: 'destructive' 
+              });
+              return;
+          }
+
+          // Transformar los datos del formulario al formato que espera el backend
+          const payload: any = {
+              name: data.name.trim(),
+              category: data.category,
+              quantity: quantity,
+              minStockLevel: minStockLevel,
+              unitPrice: unitPrice,
+              supplier: data.supplier.trim(),
+          };
+
+          // Campos opcionales
+          if (data.description && data.description.trim()) {
+              payload.description = data.description.trim();
+          }
+          if (data.sku && data.sku.trim()) {
+              payload.sku = data.sku.trim();
+          }
+          if (data.expirationDate) {
+              payload.expirationDate = data.expirationDate;
+          }
+          if (data.location && data.location.trim()) {
+              payload.location = data.location.trim();
+          }
+
+          console.log('Enviando payload:', payload);
+          await inventoryService.create(payload); 
           toast({ title: 'Producto registrado', className: 'bg-emerald-50 border-emerald-200' });
           setIsFormOpen(false); 
           loadItems();
-      } catch (error) { toast({ title: 'Error', variant: 'destructive' }); }
+      } catch (error: any) { 
+          console.error('Error al crear producto:', error);
+          const errorMessage = error?.response?.data?.message || 
+                              error?.response?.data?.error || 
+                              error?.message || 
+                              'Error desconocido al crear el producto';
+          toast({ 
+              title: 'Error al crear producto', 
+              description: errorMessage,
+              variant: 'destructive' 
+          }); 
+      }
   };
 
   const handleEditItem = async (data: any) => {
       if (!selectedItem) return;
       try {
-          await inventoryService.update(selectedItem.id, data); 
+          // Transformar los datos del formulario al formato que espera el backend
+          const payload = {
+              name: data.name,
+              category: data.category,
+              description: data.description || undefined,
+              sku: data.sku || undefined,
+              quantity: Number(data.quantity) || 0,
+              minStockLevel: Number(data.minStock || data.minQuantity || 0),
+              maxStockLevel: undefined, // Opcional
+              unitPrice: Number(data.unitPrice || data.price || 0),
+              supplier: data.supplier || undefined,
+              expirationDate: data.expirationDate || undefined,
+              location: data.location || undefined,
+          };
+          await inventoryService.update(selectedItem.id, payload); 
           toast({ title: 'Inventario actualizado' });
           setIsFormOpen(false); setSelectedItem(null); loadItems();
-      } catch (error) { toast({ title: 'Error', variant: 'destructive' }); }
+      } catch (error: any) { 
+          console.error('Error al actualizar producto:', error);
+          toast({ 
+              title: 'Error al actualizar producto', 
+              description: error?.response?.data?.message || error?.message || 'Error desconocido',
+              variant: 'destructive' 
+          }); 
+      }
   };
 
   const handleDeleteItem = async (id: string) => {

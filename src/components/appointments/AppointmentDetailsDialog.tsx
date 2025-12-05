@@ -146,7 +146,9 @@ export function AppointmentDetailsDialog({
                                     <Stethoscope className="w-4 h-4 text-blue-600" />
                                 </div>
                                 <div className="text-sm">
-                                    <p className="font-semibold text-foreground">Dr. {appointment.veterinarianName}</p>
+                                    <p className="font-semibold text-foreground">
+                                        {appointment.veterinarianName ? `Dr. ${appointment.veterinarianName}` : 'No asignado'}
+                                    </p>
                                     <p className="text-xs text-muted-foreground">Veterinario</p>
                                 </div>
                             </div>

@@ -35,6 +35,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { medicalRecordPDFTemplate, renderMedicalRecordTemplate } from '@/templates/medical-record-pdf-template';
+import { medicalRecordService } from '@/services/medicalRecordService';
+import { useState, useEffect } from 'react';
 
 interface MedicalRecordDetailsDialogProps {
     record: MedicalRecord;
@@ -51,6 +53,26 @@ export function MedicalRecordDetailsDialog({
     onEdit,
     onDelete,
 }: MedicalRecordDetailsDialogProps) {
+    const [patientRecords, setPatientRecords] = useState<MedicalRecord[]>([]);
+    const [loadingRecords, setLoadingRecords] = useState(false);
+
+    useEffect(() => {
+        if (open && record.patientId) {
+            loadPatientRecords();
+        }
+    }, [open, record.patientId]);
+
+    const loadPatientRecords = async () => {
+        try {
+            setLoadingRecords(true);
+            const records = await medicalRecordService.getByPatientId(record.patientId.toString());
+            setPatientRecords(records || []);
+        } catch (error) {
+            console.error('Error al cargar historias clínicas del paciente:', error);
+        } finally {
+            setLoadingRecords(false);
+        }
+    };
 
     const formatDate = (dateString: string) => {
         return format(new Date(dateString), "dd 'de' MMMM, yyyy", { locale: es });
@@ -418,7 +440,9 @@ export function MedicalRecordDetailsDialog({
                                 <p className="text-xs text-muted-foreground mb-1">Especialista</p>
                                 <div className="flex items-center gap-2">
                                     <User className="w-3 h-3 text-muted-foreground" />
-                                    <span className="text-sm font-medium">Dr. {record.veterinarianName.split(' ')[0]}</span>
+                                    <span className="text-sm font-medium">
+                                        {record.veterinarianName ? `Dr. ${record.veterinarianName.split(' ')[0]}` : 'No asignado'}
+                                    </span>
                                 </div>
                             </div>
                             {record.followUpDate && (
@@ -490,6 +514,46 @@ export function MedicalRecordDetailsDialog({
                                     <p className="text-sm text-muted-foreground italic pl-2 border-l-2 border-slate-200">
                                         "{record.notes}"
                                     </p>
+                                </section>
+                            )}
+
+                            {/* Historial de Historias Clínicas del Paciente */}
+                            {patientRecords.length > 1 && (
+                                <section>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <div className="p-1.5 bg-indigo-100 rounded-md text-indigo-600">
+                                            <ClipboardList className="w-5 h-5" />
+                                        </div>
+                                        <h3 className="font-bold text-lg text-slate-800">Historial de Historias Clínicas</h3>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {loadingRecords ? (
+                                            <p className="text-sm text-muted-foreground">Cargando...</p>
+                                        ) : (
+                                            patientRecords
+                                                .filter(r => r.id !== record.id)
+                                                .sort((a, b) => new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime())
+                                                .map((r) => (
+                                                    <div key={r.id} className="bg-slate-50 border border-slate-200 rounded-lg p-3 hover:bg-slate-100 transition-colors">
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <p className="text-sm font-medium text-slate-800">
+                                                                    Historia Clínica #{r.id}
+                                                                </p>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    {formatDate(r.recordDate)} - {format(new Date(r.recordDate), "HH:mm", { locale: es })}
+                                                                </p>
+                                                                {r.diagnosis && (
+                                                                    <p className="text-xs text-slate-600 mt-1 line-clamp-1">
+                                                                        {r.diagnosis}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                        )}
+                                    </div>
                                 </section>
                             )}
 

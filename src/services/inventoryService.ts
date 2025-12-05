@@ -57,10 +57,18 @@ export const inventoryService = {
   },
 
   async getByCategory(category: InventoryItem['category']): Promise<InventoryItem[]> {
-    const response = await api.get<ApiResponse<InventoryItem[]>>('/inventory/category', {
-      params: { category },
-    });
-    return response.data.data;
+    try {
+      const response = await api.get<ApiResponse<PageResponse<InventoryItem>>>(`/inventory/category/${category}`, {
+        params: { page: 0, size: 1000 },
+      });
+      // El backend devuelve una Page, extraer el content
+      return response.data.data?.content || [];
+    } catch (error) {
+      console.error('Error al obtener por categoría:', error);
+      // Si falla, intentar obtener todos y filtrar
+      const allResponse = await this.getAll(0, 1000);
+      return (allResponse.content || []).filter(item => item.category === category);
+    }
   },
 
   async create(item: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<InventoryItem> {

@@ -157,7 +157,12 @@ export function InventoryFormDialog({ open, onOpenChange, onSubmit, initialData 
                 id="price"
                 type="number"
                 step="0.01"
-                {...register('price', { required: 'El precio es requerido', valueAsNumber: true })}
+                min="0.01"
+                {...register('price', { 
+                  required: 'El precio es requerido', 
+                  valueAsNumber: true,
+                  min: { value: 0.01, message: 'El precio debe ser mayor a 0' }
+                })}
                 placeholder="0.00"
               />
               {errors.price && <p className="text-sm text-destructive mt-1">{errors.price.message}</p>}

@@ -55,7 +55,7 @@ export function PrescriptionFormDialog({ prescription, children, onSuccess }: Pr
         setFormData({
           medicalRecordId: prescription.medicalRecordId?.toString() || '',
           patientId: prescription.patientId?.toString() || '',
-          medicationId: '',
+          medicationId: prescription.medicationId?.toString() || '',
           medicationName: prescription.medicationName || '',
           dosage: prescription.dosage || '',
           frequency: prescription.frequency || '',
@@ -82,6 +82,16 @@ export function PrescriptionFormDialog({ prescription, children, onSuccess }: Pr
     }
   }, [open, prescription]);
 
+  // Establecer el medicamento seleccionado cuando se carguen los medicamentos y haya un medicationId
+  useEffect(() => {
+    if (medications.length > 0 && formData.medicationId && !selectedMedication) {
+      const med = medications.find(m => String(m.id) === formData.medicationId);
+      if (med) {
+        setSelectedMedication(med);
+      }
+    }
+  }, [medications, formData.medicationId, selectedMedication]);
+
   const loadMedicalRecords = async () => {
     try {
       const response = await medicalRecordService.getAll(0, 100);
@@ -103,23 +113,33 @@ export function PrescriptionFormDialog({ prescription, children, onSuccess }: Pr
   const loadMedications = async () => {
     try {
       setLoadingData(true);
-      const response = await inventoryService.getByCategory('MEDICATION');
-      setMedications(response);
+      // Intentar obtener medicamentos por categoría
+      try {
+        const response = await inventoryService.getByCategory('MEDICATION');
+        setMedications(response || []);
+      } catch (categoryError) {
+        // Si falla, intentar obtener todos y filtrar
+        console.warn('Error al obtener por categoría, intentando obtener todos:', categoryError);
+        const allResponse = await inventoryService.getAll(0, 1000);
+        const medications = (allResponse.content || []).filter(item => item.category === 'MEDICATION');
+        setMedications(medications);
+      }
     } catch (error) {
       console.error('Error al cargar medicamentos:', error);
       toast.error('Error al cargar medicamentos del inventario');
+      setMedications([]);
     } finally {
       setLoadingData(false);
     }
   };
 
   const handleMedicationChange = (medicationId: string) => {
-    const medication = medications.find(m => m.id === medicationId);
+    const medication = medications.find(m => String(m.id) === medicationId);
     if (medication) {
       setSelectedMedication(medication);
       setFormData({
         ...formData,
-        medicationId: medication.id,
+        medicationId: String(medication.id),
         medicationName: medication.name,
       });
     }
@@ -244,10 +264,14 @@ export function PrescriptionFormDialog({ prescription, children, onSuccess }: Pr
               disabled={loadingData}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Selecciona un medicamento del inventario" />
+                <SelectValue placeholder={loadingData ? "Cargando medicamentos..." : "Selecciona un medicamento del inventario"} />
               </SelectTrigger>
-              <SelectContent>
-                {medications.length === 0 ? (
+              <SelectContent className="max-h-[300px]">
+                {loadingData ? (
+                  <SelectItem value="_loading" disabled>
+                    Cargando medicamentos...
+                  </SelectItem>
+                ) : medications.length === 0 ? (
                   <SelectItem value="no-medications" disabled>
                     No hay medicamentos disponibles
                   </SelectItem>
@@ -255,14 +279,14 @@ export function PrescriptionFormDialog({ prescription, children, onSuccess }: Pr
                   medications.map((medication) => (
                     <SelectItem 
                       key={medication.id} 
-                      value={medication.id}
+                      value={String(medication.id)}
                       disabled={medication.quantity <= 0}
                     >
-                      <div className="flex items-center justify-between w-full">
-                        <span>{medication.name}</span>
+                      <div className="flex items-center justify-between w-full gap-2">
+                        <span className="flex-1 truncate">{medication.name}</span>
                         <Badge 
                           variant={medication.quantity <= 0 ? "destructive" : medication.quantity <= medication.minQuantity ? "secondary" : "default"}
-                          className="ml-2"
+                          className="shrink-0"
                         >
                           {medication.quantity <= 0 ? 'Sin stock' : `${medication.quantity} ${medication.unit || 'unidades'}`}
                         </Badge>

@@ -199,15 +199,21 @@ export function InformedConsentFormDialog({ open, onClose, onSubmit, consent }: 
                 onValueChange={(value) => setFormData({ ...formData, veterinarianId: value })}
                 required
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Selecciona un veterinario" />
                 </SelectTrigger>
-                <SelectContent>
-                  {veterinarians.map((vet) => (
-                    <SelectItem key={vet.id} value={vet.id}>
-                      {vet.firstName} {vet.lastName}
+                <SelectContent className="max-h-[300px]">
+                  {veterinarians.length === 0 ? (
+                    <SelectItem value="_empty" disabled>
+                      No hay veterinarios disponibles
                     </SelectItem>
-                  ))}
+                  ) : (
+                    veterinarians.map((vet) => (
+                      <SelectItem key={vet.id} value={vet.id}>
+                        {vet.firstName} {vet.lastName} {vet.username ? `(${vet.username})` : ''}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

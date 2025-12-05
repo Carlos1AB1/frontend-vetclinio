@@ -278,7 +278,7 @@ export function PatientFormDialog({ open, onClose, onSubmit, patient }: PatientF
                   </div>
                 )}
                 {owners.map((owner) => (
-                  <SelectItem key={owner.id} value={owner.id}>
+                  <SelectItem key={owner.id} value={String(owner.id)}>
                     {owner.firstName} {owner.lastName} - {owner.documentNumber}
                   </SelectItem>
                 ))}

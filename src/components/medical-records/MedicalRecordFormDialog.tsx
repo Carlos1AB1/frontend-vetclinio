@@ -224,7 +224,7 @@ export function MedicalRecordFormDialog({
                     <FormLabel>Paciente *</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value}
                       disabled={loadingData || !!record}
                     >
                       <FormControl>
